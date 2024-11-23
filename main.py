@@ -1,20 +1,18 @@
 import os
 
+### Importing Initialization functions ###
+from funcs.initialization import setup_dirs
+from funcs.initialization import setup_dbs
+from funcs.initialization import get_ollama_port
+from funcs.initialization import make_chain_entry
+from funcs.initialization import investigate_circumstances
+
 
 def main():
 
     # Set placeholder values for the user query and error message
     query = "Why is the sky blue?"
     err_msg = ""
-
-
-    # Import
-    from funcs.initialization import setup_dirs
-    from funcs.initialization import setup_dbs
-    from funcs.initialization import get_ollama_port
-    from funcs.initialization import make_chain_entry
-    from funcs.initialization import investigate_circumstances
-
 
     # List of directory names to create
     print("Setting up directories...")
