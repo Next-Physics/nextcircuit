@@ -17,7 +17,7 @@ def main():
 
     # Set placeholder values for the user query and error message
     d = {}
-    d["prompt"] = "Help me make a busniess plan to start a new ice cream company, including how to get suppliers of raw materials"
+    d["prompt"] = "Help me find a date for my sister's wedding, my name is greg allan and I am 32 years old (find me on facebook)."
     d["model"] = 'llama3.1:8b'
 
     # List of directory names to create
