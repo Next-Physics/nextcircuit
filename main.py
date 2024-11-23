@@ -9,12 +9,16 @@ from funcs.initialization import make_chain_entry
 from funcs.initialization import investigate_circumstances
 from funcs.initialization import generate_chain_id_and_title
 
+### Importing Main Agent functions ###
+from funcs.planning import propose_step_by_step_plan
+
 
 def main():
 
     # Set placeholder values for the user query and error message
-    prompt = "Help me make a busniess plan to start a new ice cream company, including how to get suppliers of raw materials"
-    model = 'llama3.1:8b'
+    d = {}
+    d["prompt"] = "Help me make a busniess plan to start a new ice cream company, including how to get suppliers of raw materials"
+    d["model"] = 'llama3.1:8b'
 
     # List of directory names to create
     print("Setting up directories...")
@@ -28,9 +32,9 @@ def main():
 
     # Identify Ollama port
     print("Identifying Ollama port...")
-    port = get_ollama_port()
-    if port:
-        print(port)
+    d["port"] = get_ollama_port()
+    if d["port"]:
+        print(d["port"])
         print("Success!\n")
     else:
         print("Oops: Ollama not found on the local machine.\n")
@@ -38,29 +42,28 @@ def main():
 
     # Get Ip address of the local machine
     print("Getting local IP address...")
-    local_ip = get_local_ip()
-    print("Local IP: ", local_ip)
+    d["local_ip"] = get_local_ip()
+    print("Local IP: ", d["local_ip"])
     print("Success!\n")
     
+#     
     print("Generating chain ID and title...")
-    id,title = generate_chain_id_and_title(prompt, model, local_ip, port)
-    print("The ID is:", id)
-    print("The Title is:",title)
+    d = generate_chain_id_and_title(d)
+    print("The ID is:", d["id"])
+    print("The Title is:",d["title"])
     print("Success!\n")
 
-   # print("Making project entry in the database...")
-   # from funcs.initialization import make_chain_entry
-   # make_chain_entry("Project Title", query)
+    print("Investigating physical circumstances and updating DB...")
+    investigate_circumstances(id)
+    print("Updated DB with physical circumstances\n")
+    print("Success!\n")
 
-    ### Investigate physical circumstances: local hardware, OS and internet connection ###
-  #  print("Investigating physical circumstances and updating DB...")
- #   investigate_circumstances()
-  #  print("Success!\n")
+    ############################################################
+    ################## MAIN AGENT CODE #########################
+    ############################################################
 
-
-    ### Submit user query to the database and agent ###
-
-
+    # print("Layout step by step plan to achieve the goal...")
+    # layout_plan(id,prompt)
 
     ### Get immediate Plan from the agent ###
     # Input: User Query, 

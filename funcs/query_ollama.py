@@ -4,14 +4,19 @@ def query_ollama(d):
 
         if "model" not in d:
                 d["model"] = 'llama3.1:8b'
+        
+        host=f"""http://{d['local_ip']}:{d['port']}"""
 
-        client = Client(host=f"""http://{d['local_ip']}:{d['port']}""")
+        client = Client(host=host)
 
-        response = client.chat(model=d["model"], messages=[
-        {'role': 'user',
-        'content': d['prompt']}]
-        )
+        response = client.chat(model=d["model"],
+                                messages=[
+                                {'role': 'user',
+                                'content': d['exe_prompt']}]
+                                )
 
         # options={"stop":[f"| {no_of_days+1}  |"]}
         output = response["message"]["content"]
+
+ 
         return output

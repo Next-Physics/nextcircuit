@@ -21,7 +21,6 @@ def setup_dirs(script_folder):
             # Create the directory
             os.makedirs(dir_path)
 
-
 ### Setup sqlite3 databases to store progress and data###
 def setup_dbs():
 
@@ -105,20 +104,36 @@ def get_ollama_port():
             # Execute the command using subprocess
             result = subprocess.check_output(command, shell=True, text=True)
 
-            # Parse the result to find the listening port
+            # Initialize variables to store the desired port and lowest PID
+            chosen_port = None
+            lowest_pid = float('inf')
+
+            # Parse the result to find the port based on criteria
             for line in result.strip().split('\n'):
                 if 'ollama' in line:
-                    # Extract the port from the local address
-                    local_address = line.split()[3]  # Typically in the format IP:PORT
-                    ollama_port = local_address.split(":")[-1]
-                    break
+                    # Split the line into components
+                    parts = line.split()
+                    local_address = parts[3]  # Typically in the format IP:PORT
+                    pid_process = parts[6]   # PID/Process
+                    pid = int(pid_process.split('/')[0])  # Extract the PID
+                    
+                    # Check for the ":::" pattern in the local address
+                    if ":::" in local_address and pid < lowest_pid:
+                        # Extract the port and update the lowest PID
+                        chosen_port = local_address.split(":")[-1]
+                        lowest_pid = pid
 
+                        return chosen_port
+
+            if chosen_port:
+                print(f"The chosen port is: {chosen_port} with PID: {lowest_pid}")
+            else:
+                print("No matching process found.")
+                
         except subprocess.CalledProcessError:
             print("Ollama is not running or the port could not be found.")
         except Exception as e:
             print(f"An error occurred: {e}")
-
-    return ollama_port
 
 
 def get_local_ip():
@@ -132,34 +147,28 @@ def get_local_ip():
         return f"Error occurred: {e}"
 
 
-def generate_chain_id_and_title(prompt, model, local_ip, port):
-    
+def generate_chain_id_and_title(d):
+
     pre_prompt = """
     Given the user query below, write an ultra short title that summerizes what the user wants to achieve. Maximum 200 characters:
 
     """
 
-    get_title_prompt = pre_prompt + prompt
-
-    d = {}
-    d["prompt"] = get_title_prompt
-    d["model"] = model
-    d["local_ip"] = local_ip
-    d["port"] = port
+    d["exe_prompt"] = pre_prompt + d["prompt"]
     
     ### Genrate title and id for the chain ###
-    title = query_ollama(d)
+    d["title"] = query_ollama(d)
 
-    id = 70073
-    return id, title
+    d["id"] = make_chain_entry(d["title"],d["prompt"])
+
+    return d
 
 
-### Make chain entry in the database and return id ###
-def make_chain_entry(chain_title, user_query):
+def make_chain_entry(chain_title, prompt):
     conn = sqlite3.connect('db/main.db')
     c = conn.cursor()
     query = "INSERT INTO chains (chain_title, user_query, chain_created_time, chain_last_modified) VALUES (?, ?, datetime('now'), datetime('now'))"
-    c.execute(query, (chain_title, user_query))
+    c.execute(query, (chain_title, prompt))
     conn.commit()
     chain_id = c.lastrowid
     conn.close()
@@ -222,18 +231,18 @@ def investigate_circumstances(chain_id):
 
     # Detect the OS
     detected_os = investigate_platform()
-    insert_into_chains_db(chain_id,"detected_os",detected_os)
+    update_chains_db(chain_id,"detected_os",detected_os)
 
     # Detect the hardware
     detected_hardware = investigate_hardware()
-    insert_into_chains_db(chain_id,"detected_hardware",detected_hardware)
+    update_chains_db(chain_id,"detected_hardware",detected_hardware)
 
     # Check for internet connection
     internet_connection = check_internet_connection()
-    insert_into_chains_db(chain_id,"internet_connection",internet_connection)
+    update_chains_db(chain_id,"internet_connection",internet_connection)
 
 
-def insert_into_chains_db(chain_id,column,value):
+def update_chains_db(chain_id,column,value):
     conn = sqlite3.connect('db/main.db')
     c = conn.cursor()
     query = f"UPDATE chains SET {column} = ? WHERE id = ?"
