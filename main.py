@@ -62,8 +62,9 @@ def main():
     ################## MAIN AGENT CODE #########################
     ############################################################
 
-    # print("Layout step by step plan to achieve the goal...")
-    # layout_plan(id,prompt)
+    print("Layout step by step plan to achieve the goal...")
+    propose_step_by_step_plan(d)
+    print("Success!\n")
 
     ### Get immediate Plan from the agent ###
     # Input: User Query, 
