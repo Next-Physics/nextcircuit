@@ -4,15 +4,17 @@ import os
 from funcs.initialization import setup_dirs
 from funcs.initialization import setup_dbs
 from funcs.initialization import get_ollama_port
+from funcs.initialization import get_local_ip
 from funcs.initialization import make_chain_entry
 from funcs.initialization import investigate_circumstances
+from funcs.initialization import generate_chain_id_and_title
 
 
 def main():
 
     # Set placeholder values for the user query and error message
-    query = "Why is the sky blue?"
-    err_msg = ""
+    prompt = "Help me make a busniess plan to start a new ice cream company, including how to get suppliers of raw materials"
+    model = 'llama3.1:8b'
 
     # List of directory names to create
     print("Setting up directories...")
@@ -26,15 +28,26 @@ def main():
 
     # Identify Ollama port
     print("Identifying Ollama port...")
-    ollama_port = get_ollama_port()
-    if ollama_port:
-        print(ollama_port)
+    port = get_ollama_port()
+    if port:
+        print(port)
         print("Success!\n")
     else:
-        print("Error: Ollama not found on the local machine.\n")
+        print("Oops: Ollama not found on the local machine.\n")
         exit()
 
+    # Get Ip address of the local machine
+    print("Getting local IP address...")
+    local_ip = get_local_ip()
+    print("Local IP: ", local_ip)
+    print("Success!\n")
     
+    print("Generating chain ID and title...")
+    id,title = generate_chain_id_and_title(prompt, model, local_ip, port)
+    print("The ID is:", id)
+    print("The Title is:",title)
+    print("Success!\n")
+
    # print("Making project entry in the database...")
    # from funcs.initialization import make_chain_entry
    # make_chain_entry("Project Title", query)

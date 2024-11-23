@@ -4,6 +4,7 @@ import sqlite3
 import platform
 import socket
 import subprocess
+from funcs.query_ollama import query_ollama
 
 ### Setup Directories to host the database and results ###
 def setup_dirs(script_folder):
@@ -120,6 +121,38 @@ def get_ollama_port():
     return ollama_port
 
 
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception as e:
+        return f"Error occurred: {e}"
+
+
+def generate_chain_id_and_title(prompt, model, local_ip, port):
+    
+    pre_prompt = """
+    Given the user query below, write an ultra short title that summerizes what the user wants to achieve. Maximum 200 characters:
+
+    """
+
+    get_title_prompt = pre_prompt + prompt
+
+    d = {}
+    d["prompt"] = get_title_prompt
+    d["model"] = model
+    d["local_ip"] = local_ip
+    d["port"] = port
+    
+    ### Genrate title and id for the chain ###
+    title = query_ollama(d)
+
+    id = 70073
+    return id, title
+
 
 ### Make chain entry in the database and return id ###
 def make_chain_entry(chain_title, user_query):
@@ -131,7 +164,6 @@ def make_chain_entry(chain_title, user_query):
     chain_id = c.lastrowid
     conn.close()
     return chain_id
-
 
 
 def investigate_platform():
