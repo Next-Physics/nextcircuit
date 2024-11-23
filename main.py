@@ -54,7 +54,7 @@ def main():
     print("Success!\n")
 
     print("Investigating physical circumstances and updating DB...")
-    investigate_circumstances(id)
+    investigate_circumstances(d["id"])
     print("Updated DB with physical circumstances\n")
     print("Success!\n")
 
