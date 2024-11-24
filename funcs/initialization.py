@@ -5,6 +5,7 @@ import platform
 import socket
 import subprocess
 from funcs.query_ollama import query_ollama
+from funcs.db_funcs import update_chains_db
 
 ### Setup Directories to host the database and results ###
 def setup_dirs(script_folder):
@@ -24,7 +25,7 @@ def setup_dirs(script_folder):
 ### Setup sqlite3 databases to store progress and data###
 def setup_dbs():
 
-### Create the database to store "Chains" entries ###
+    print("Setting up directories...")
 
     # Database name
     db_name = "db/main.db"
@@ -45,7 +46,8 @@ def setup_dbs():
                  proof_of_achievement TEXT, 
                  detected_hardware TEXT,
                  detected_os TEXT,
-                internet_connection TEXT,
+                 internet_connection TEXT,
+                 history TEXT,
                  chain_created_time TEXT, 
                  chain_last_modified TEXT)
               ''')
@@ -56,47 +58,52 @@ def setup_dbs():
         # Close the connection
         conn.close()
 
+    print("Success!\n")
+
 
 def get_ollama_port():
+
+    print("Identifying Ollama port...")
+
     # Default port number
     ollama_port = None
 
-    # Check if Ollama is running on Windows
-    if platform.system() == "Windows":
-        # Command to get the process ID of Ollama
-        command = 'tasklist /FI "IMAGENAME eq ollama.exe"'
+    # # Check if Ollama is running on Windows
+    # if platform.system() == "Windows":
+    #     # Command to get the process ID of Ollama
+    #     command = 'tasklist /FI "IMAGENAME eq ollama.exe"'
 
-        # Execute the command and get the result
-        result = os.popen(command).read()
+    #     # Execute the command and get the result
+    #     result = os.popen(command).read()
 
-        # Check if Ollama is running
-        if "No tasks are running" not in result:
-            # Parse the result to get the PID
-            lines = result.strip().split("\n")
-            if len(lines) >= 4:
-                # The PID is in the second column
-                pid = lines[3].split()[1]
+    #     # Check if Ollama is running
+    #     if "No tasks are running" not in result:
+    #         # Parse the result to get the PID
+    #         lines = result.strip().split("\n")
+    #         if len(lines) >= 4:
+    #             # The PID is in the second column
+    #             pid = lines[3].split()[1]
 
-                # Command to get the port number
-                netstat_command = f'netstat -ano | findstr {pid}'
+    #             # Command to get the port number
+    #             netstat_command = f'netstat -ano | findstr {pid}'
 
-                # Execute the command
-                netstat_result = os.popen(netstat_command).read()
+    #             # Execute the command
+    #             netstat_result = os.popen(netstat_command).read()
 
-                # Parse the netstat result to find the listening port
-                for line in netstat_result.strip().split('\n'):
-                    if 'LISTENING' in line:
-                        cols = line.strip().split()
-                        local_address = cols[1]
-                        # Extract the port from the local address
-                        ollama_port = local_address.split(":")[-1]
-                        break
-        else:
-            print("Ollama is not running.")
-            ollama_port = None
+    #             # Parse the netstat result to find the listening port
+    #             for line in netstat_result.strip().split('\n'):
+    #                 if 'LISTENING' in line:
+    #                     cols = line.strip().split()
+    #                     local_address = cols[1]
+    #                     # Extract the port from the local address
+    #                     ollama_port = local_address.split(":")[-1]
+    #                     break
+    #     else:
+    #         print("Ollama is not running.")
+    #         ollama_port = None
 
     # Check if Ollama is running on Linux
-    elif platform.system() == "Linux":
+    if platform.system() == "Linux":
         try:
             # Use sudo to ensure visibility into all processes
             command = 'sudo netstat -tulnp | grep ollama'
@@ -122,32 +129,52 @@ def get_ollama_port():
                         # Extract the port and update the lowest PID
                         chosen_port = local_address.split(":")[-1]
                         lowest_pid = pid
-
+                        print("Success!\n")
                         return chosen_port
 
             if chosen_port:
                 print(f"The chosen port is: {chosen_port} with PID: {lowest_pid}")
             else:
                 print("No matching process found.")
+                exit()
                 
         except subprocess.CalledProcessError:
             print("Ollama is not running or the port could not be found.")
+            exit()
         except Exception as e:
             print(f"An error occurred: {e}")
+            exit()
 
 
 def get_local_ip():
+
+    print("Getting local IP address...")
+
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         local_ip = s.getsockname()[0]
         s.close()
+        print("Local IP: ", local_ip)
+        print("Success!\n")
         return local_ip
+    
     except Exception as e:
         return f"Error occurred: {e}"
 
+def generate_new_chain_id():
+    conn = sqlite3.connect('db/main.db')
+    c = conn.cursor()
+    query = "INSERT INTO chains (chain_created_time, chain_last_modified) VALUES (datetime('now'), datetime('now'))"
+    c.execute(query)
+    conn.commit()
+    chain_id = c.lastrowid
+    conn.close()
+    return chain_id
 
-def generate_chain_id_and_title(d):
+def generate_chain_title(d):
+
+    print("Generating chain ID and title...")
 
     pre_prompt = """
     Given the user query below, write an ultra short title that summerizes what the user wants to achieve. Maximum 200 characters:
@@ -159,20 +186,42 @@ def generate_chain_id_and_title(d):
     ### Genrate title and id for the chain ###
     d["title"] = query_ollama(d)
 
-    d["id"] = make_chain_entry(d["title"],d["prompt"])
+    update_chain_title(d["title"],d["prompt"])
+    
+
+
+    print("Success!\n")
 
     return d
 
 
-def make_chain_entry(chain_title, prompt):
+def update_chain_title(chain_title, prompt):
     conn = sqlite3.connect('db/main.db')
     c = conn.cursor()
-    query = "INSERT INTO chains (chain_title, user_query, chain_created_time, chain_last_modified) VALUES (?, ?, datetime('now'), datetime('now'))"
+    query = "UPDATE chains SET chain_title = ?, user_query = ? WHERE id = ?"
     c.execute(query, (chain_title, prompt))
     conn.commit()
-    chain_id = c.lastrowid
     conn.close()
-    return chain_id
+
+def investigate_circumstances(chain_id):
+
+    print("Investigating physical circumstances and updating DB...")
+
+    # Detect the OS
+    detected_os = investigate_platform()
+    update_chains_db(chain_id,"detected_os",detected_os)
+
+    # Detect the hardware
+    detected_hardware = investigate_hardware()
+    update_chains_db(chain_id,"detected_hardware",detected_hardware)
+
+    # Check for internet connection
+    internet_connection = check_internet_connection()
+    update_chains_db(chain_id,"internet_connection",internet_connection)
+
+
+    print("Updated DB with physical circumstances...")
+    print("Success!\n")
 
 
 def investigate_platform():
@@ -227,25 +276,3 @@ def check_internet_connection(host="8.8.8.8", port=53, timeout=3):
         return False
 
 
-def investigate_circumstances(chain_id):
-
-    # Detect the OS
-    detected_os = investigate_platform()
-    update_chains_db(chain_id,"detected_os",detected_os)
-
-    # Detect the hardware
-    detected_hardware = investigate_hardware()
-    update_chains_db(chain_id,"detected_hardware",detected_hardware)
-
-    # Check for internet connection
-    internet_connection = check_internet_connection()
-    update_chains_db(chain_id,"internet_connection",internet_connection)
-
-
-def update_chains_db(chain_id,column,value):
-    conn = sqlite3.connect('db/main.db')
-    c = conn.cursor()
-    query = f"UPDATE chains SET {column} = ? WHERE id = ?"
-    c.execute(query, (str(value), chain_id))
-    conn.commit()
-    conn.close()

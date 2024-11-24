@@ -1,4 +1,6 @@
+import re
 from ollama import Client
+from funcs.misc import log_print
 
 def query_ollama(d):
 
@@ -15,8 +17,14 @@ def query_ollama(d):
                                 'content': d['exe_prompt']}]
                                 )
 
-        # options={"stop":[f"| {no_of_days+1}  |"]}
-        output = response["message"]["content"]
 
- 
+        if d["model"] == 'marco-o1':
+                output = response["message"]["content"].split("<Output>")[-1].split("</Output>")[0]
+        else:
+                output = response["message"]["content"]
+
+
+        print(output)
+
         return output
+

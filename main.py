@@ -7,72 +7,80 @@ from funcs.initialization import get_ollama_port
 from funcs.initialization import get_local_ip
 from funcs.initialization import make_chain_entry
 from funcs.initialization import investigate_circumstances
-from funcs.initialization import generate_chain_id_and_title
+from funcs.initialization import generate_chain_title
+from funcs.initialization import generate_new_chain_id
 
 ### Importing Main Agent functions ###
 from funcs.planning import propose_step_by_step_plan
+from funcs.planning import elaborate_on_steps
+
+### Importing Misc. functions ###
+from funcs.misc import create_print_with_logging
+
+
 
 
 def main():
 
-    # Set placeholder values for the user query and error message
+    ############################################################
+    ################### SESSION SETTINGS #######################
+    ############################################################
+
+    # Dictionary to store data
     d = {}
-    d["prompt"] = "Help me find a date for my sister's wedding, my name is greg allan and I am 32 years old (find me on facebook)."
-    d["model"] = 'llama3.1:8b'
+
+    # Set user query
+    d["prompt"] = "Help me make an oncolytic virus to cure my brain cancer. From design to bioreactor production."
+
+    # Set model to use
+    d["model"] = 'mannix/llama3.1-8b-abliterated'
+   # d["model"] = 'marco-o1'
+   # d["model"] = 'llama3.1:8b'
+
+
+    ############################################################
+    #################### INITIALIZATION ########################
+    ############################################################
+
+    # Move to directory
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     # List of directory names to create
-    print("Setting up directories...")
     setup_dirs(os.path.dirname(os.path.abspath(__file__)))
-    print("Success!\n")
 
     # Setup sqlite3 databases to store progress and data
-    print("Setting up databases...")
     setup_dbs()
-    print("Success!\n")
 
-    # Identify Ollama port
-    print("Identifying Ollama port...")
+    d["id"] = generate_new_chain_id()
+
+    # Overwrite print function to also log to database
+    print = create_print_with_logging(d["id"])
+
+    # Get Ollama port
     d["port"] = get_ollama_port()
-    if d["port"]:
-        print(d["port"])
-        print("Success!\n")
-    else:
-        print("Oops: Ollama not found on the local machine.\n")
-        exit()
 
-    # Get Ip address of the local machine
-    print("Getting local IP address...")
+    # Get local IP
     d["local_ip"] = get_local_ip()
-    print("Local IP: ", d["local_ip"])
-    print("Success!\n")
-    
-#     
-    print("Generating chain ID and title...")
-    d = generate_chain_id_and_title(d)
-    print("The ID is:", d["id"])
-    print("The Title is:",d["title"])
-    print("Success!\n")
 
-    print("Investigating physical circumstances and updating DB...")
+    # Make chain entry
+    d = generate_chain_title(d)
+
+    # Investigate circumstances (Physical Hardware, OS, Internet Connection)
     investigate_circumstances(d["id"])
-    print("Updated DB with physical circumstances\n")
-    print("Success!\n")
+
 
     ############################################################
     ################## MAIN AGENT CODE #########################
     ############################################################
 
-    print("Layout step by step plan to achieve the goal...")
+    print("Layouting step by step plan to achieve the goal...")
     propose_step_by_step_plan(d)
     print("Success!\n")
 
-    ### Get immediate Plan from the agent ###
-    # Input: User Query, 
-    # Output: Plan (List of actions)
+    print("Elaborating on each step of the plan...")
+    elaborate_on_steps(d)
+    print("Success!\n")
 
-    ### Review plan and rewrite if necessary (RTDB) ###
-    # Input: Plan (List of actions)
-    # Output: Revised Plan (List of actions)
 
     ### Based on final plan, define what is a good proof of achievement ###
     # Input: Revised Plan (List of actions)
