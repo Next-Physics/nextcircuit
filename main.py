@@ -1,11 +1,12 @@
+### Module imports ###
 import os
+import builtins
 
 ### Importing Initialization functions ###
 from funcs.initialization import setup_dirs
 from funcs.initialization import setup_dbs
 from funcs.initialization import get_ollama_port
 from funcs.initialization import get_local_ip
-from funcs.initialization import make_chain_entry
 from funcs.initialization import investigate_circumstances
 from funcs.initialization import generate_chain_title
 from funcs.initialization import generate_new_chain_id
@@ -54,7 +55,7 @@ def main():
     d["id"] = generate_new_chain_id()
 
     # Overwrite print function to also log to database
-    print = create_print_with_logging(d["id"])
+    builtins.print = create_print_with_logging(d["id"])
 
     # Get Ollama port
     d["port"] = get_ollama_port()

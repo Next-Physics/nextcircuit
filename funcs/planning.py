@@ -39,6 +39,8 @@ def propose_step_by_step_plan(d):
     Utilize available resources effectively to enhance the plan.
     Ensure each step is clear, unambiguous, and detailed enough to be followed precisely.
     Anticipate potential challenges and include troubleshooting tips.
+    Always think twice and deeply and make sure the plan is foolproof.
+    Include as many steps as possible
 
     Output Format:
     Begin with an overview of the strategy.

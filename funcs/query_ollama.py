@@ -1,6 +1,5 @@
 import re
 from ollama import Client
-from funcs.misc import log_print
 
 def query_ollama(d):
 

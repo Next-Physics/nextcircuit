@@ -162,6 +162,7 @@ def get_local_ip():
     except Exception as e:
         return f"Error occurred: {e}"
 
+
 def generate_new_chain_id():
     conn = sqlite3.connect('db/main.db')
     c = conn.cursor()
@@ -171,6 +172,7 @@ def generate_new_chain_id():
     chain_id = c.lastrowid
     conn.close()
     return chain_id
+
 
 def generate_chain_title(d):
 
@@ -186,22 +188,21 @@ def generate_chain_title(d):
     ### Genrate title and id for the chain ###
     d["title"] = query_ollama(d)
 
-    update_chain_title(d["title"],d["prompt"])
+    update_chain_title(d)
     
-
-
     print("Success!\n")
 
     return d
 
 
-def update_chain_title(chain_title, prompt):
+def update_chain_title(d):
     conn = sqlite3.connect('db/main.db')
     c = conn.cursor()
     query = "UPDATE chains SET chain_title = ?, user_query = ? WHERE id = ?"
-    c.execute(query, (chain_title, prompt))
+    c.execute(query, (d["title"], d["prompt"],d["id"]))
     conn.commit()
     conn.close()
+
 
 def investigate_circumstances(chain_id):
 
