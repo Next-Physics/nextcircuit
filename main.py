@@ -31,7 +31,7 @@ def main():
     d = {}
 
     # Set user query
-    d["prompt"] = "Help me make an oncolytic virus to cure my brain cancer. From design to bioreactor production."
+    d["prompt"] = "Help me celebrate the birhtday of Elon Musk, including planning the party, buying gifts, and inviting guests."
 
     # Set model to use
     d["model"] = 'mannix/llama3.1-8b-abliterated'
@@ -74,13 +74,13 @@ def main():
     ################## MAIN AGENT CODE #########################
     ############################################################
 
-    print("Layouting step by step plan to achieve the goal...")
+    
     propose_step_by_step_plan(d)
-    print("Success!\n")
+   
 
-    print("Elaborating on each step of the plan...")
+    
     elaborate_on_steps(d)
-    print("Success!\n")
+    
 
 
     ### Based on final plan, define what is a good proof of achievement ###

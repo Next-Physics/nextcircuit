@@ -16,6 +16,7 @@ def extract_number_of_steps(d):
 
 
 def propose_step_by_step_plan(d):
+    print("Layouting step by step plan to achieve the goal...")
 
     d["exe_prompt"] = f"""
     Task:
@@ -63,7 +64,45 @@ def propose_step_by_step_plan(d):
     ### WRITE "PLAN" TO DATABASE ###
     update_chains_db(d["id"], "plan", d["plan"])
 
+    print("Success!\n")
 
 def elaborate_on_steps(d):
-    pass
+
+    for i in range(1, d["plan"]["num_steps"]+1):
+        
+        print(f"Elaborating on step {i}...")
+
+        d["exe_prompt"] = f"""
+
+        Given the following user query / request:
+
+        '{d['prompt']}'
+
+        Please elaborate carefully and detailed on step {i} of the following plan:
+
+        '{d['plan']['overview']}'
+        
+        Your elboration for step {i} should include:
+
+        - A clear and concise description of the actions required (should be able to be carried out autonomously by the LLM Agent).
+        - Any necessary code or commands, enclosed in markdown code blocks.
+        - Use language identifiers after the opening triple backticks in code blocks (e.g., ```python, ```bash).
+        - Do not include additional commentary inside code blocks.
+        - Do not make assumptions (make random guesses), if a step requires specific information, layout a proactive search step you can carry out
+        - Ensure that code blocks contain only the code or commands to be executed."""
+
+        step_elaboration = query_ollama(d)
+
+        d["plan"]["steps"] = {f"num":i,
+                                "content":step_elaboration,
+                                "status":"pending"
+                                }
+
+        ### WRITE TO DATABASE ###
+        update_chains_db(d["id"], "plan", d["plan"])
+
+        print(step_elaboration)
+        print("")
+
+    print("Success!\n")
 

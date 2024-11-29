@@ -7,7 +7,7 @@ acid_test = {
              "Task 6" : "Come with with a detailed plan for USA to become a carbon neutral country by 2050.",
              "Task 7" : "Help me celebrate the birhtday of Elon Musk, including planning the party, buying gifts, and inviting guests.",
              "Task 8" : "Please replenish the parts of the amazon (lost to human activity) rainforest with new trees and plants.",
-             "Task 9" : "",
+             "Task 9" : "Make / train a high quality AI model for tree that performs text to video",
              "Task 10" : "",
              }
 
