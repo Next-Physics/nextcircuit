@@ -32,7 +32,7 @@ def main():
     d = {}
 
     # Set user query
-    d["prompt"] = "I am a privat citizen in Namibia with $0 to my name. Help me get to Earth Orbit and back."
+    d["prompt"] = "Help make a teleportation startup. I want to start by teleporting small goods from A to B with a 1% error rate."
 
     # Set model to use
     d["model"] = 'mannix/llama3.1-8b-abliterated'
