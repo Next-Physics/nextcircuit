@@ -24,6 +24,7 @@ def query_ollama(d):
 
 
         print(output)
-
+ 
         return output
+        
 

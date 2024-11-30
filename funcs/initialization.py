@@ -8,7 +8,7 @@ from funcs.query_ollama import query_ollama
 from funcs.db_funcs import update_chains_db
 
 ### Setup Directories to host the database and results ###
-def setup_dirs(script_folder):
+def setup_dirs(script_folder,d):
     # List of directory names to create
     directories_to_create = ["db", "results"]
 
@@ -21,6 +21,9 @@ def setup_dirs(script_folder):
         if not os.path.exists(dir_path):
             # Create the directory
             os.makedirs(dir_path)
+
+        if directory == "results":
+            d["results_dir"] = dir_path
 
 ### Setup sqlite3 databases to store progress and data###
 def setup_dbs():
