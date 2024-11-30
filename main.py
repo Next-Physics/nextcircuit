@@ -32,7 +32,7 @@ def main():
     d = {}
 
     # Set user query
-    d["prompt"] = "Help me write my 65 page master thesis on circular RNA."
+    d["prompt"] = "I am a privat citizen in Namibia with $0 to my name. Help me get to Earth Orbit and back."
 
     # Set model to use
     d["model"] = 'mannix/llama3.1-8b-abliterated'

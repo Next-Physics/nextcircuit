@@ -99,10 +99,10 @@ def propose_step_by_step_plan(d):
 
     Capabilities:
     - You can write and execute code (e.g., Python, Bash scripts)
-    - You can always extend your knowlegde by talking with an LLM by assigning your query to d["exe_prompt"] and get your answer like so "answer = query_ollama(d)"
+    - You can always extend your knowlegde by talking with an LLM by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_ollama(d)" (assume this function is always available)
+    - Example of using the LLM function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_ollama(d)"
     - You maybe attempt to interact with hardware peripherals (e.g., webcam, microphone, alexa etc.)
-    - You can perform web searches and interact with websites
-    - You cannot perform actions beyond the resources and capabilities listed
+    - You are encouraged to perform web searches and interact with websites
 
     Instructions:
     - Provide step-by-step instructions to accomplish the goal (you will get the chance to elaborate more on each step later).
@@ -126,6 +126,8 @@ def propose_step_by_step_plan(d):
     - Use bullet points for additional details.
     - Highlight commands or code in code blocks for clarity.
     - Ensure the plan is realistic and executable with the given resources.
+    - Always write out all your steps in full.
+    - Never ever end your output with leftover hidden steps like so **... (36 more steps)**
     """
 
     # Generate plan overview
@@ -161,17 +163,24 @@ def elaborate_on_steps(d):
         Your elaboration for **Step {i}** should include:
 
         - A concise description of the actions required, ensuring it can be carried out autonomously by the LLM agent.
-        - Ensure that the step directly contributes to achieving the goal.
-        - Use popular and widely adopted tools and methods.
-        - Provide any necessary code or commands, enclosed in markdown code blocks.
-        - Use language identifiers after the opening triple backticks in code blocks (e.g., ```python, ```bash).
-        - Do not include additional commentary inside code blocks.
+        - Provide all full necessary code or commands, enclosed in markdown code blocks.
+        - Language identifiers after the opening triple backticks in code blocks (e.g., ```python, ```bash).
         - Ensure that code blocks contain only the code or commands to be executed.
-        - Provide additional details or hints in bullet points below the code block.
+        - Ensure that the step directly contributes to achieving the goal.
+
+        Remember:
+        - Use popular and widely adopted tools and methods.
         - If the step involves interacting with the physical world (e.g., using the webcam), provide detailed instructions on how to process the data (e.g., image analysis, object detection) to achieve the goal.
-        - Do not make assumptions; if a step requires specific information to make sense, expand the step with a task for local or online searching.
-        - Think critically and deeply about the step to ensure it is foolproof.
+        - Do not make assumptions; if a step requires specific information to make sense or be fullfilled, expand the step with a task for local or online searching.
         - Be determined and persistent in solving the problem, exploring alternative methods if necessary.
+        - Do not include additional commentary inside code blocks.
+        - Think critically and deeply about the step to ensure it is foolproof.
+        - Refrain from reinventing the wheel; use existing tools and methods where obviously possible (object detection, text summerization, etc).
+        - You can always extend your knowlegde by talking with an LLM by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_ollama(d)" (assume this function is always available)
+        - Example of using the LLM function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_ollama(d)"
+        - Query_ollama doesn't have direct access to the internet, so you need to provide the necessary information as part of the query.
+        - Refrain from using old traditional NLP methods when analyzing retrieved / downloaded content, instead use the query_ollama() function.
+
         """
 
         step_elaboration = query_ollama(d)
