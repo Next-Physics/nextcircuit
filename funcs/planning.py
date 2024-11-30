@@ -12,24 +12,24 @@ def create_elaboration_prompt(d):
 
     Please expand this query to be more comprehensive while maintaining its core intent. Consider:
 
-    1. CONTEXT: What background information or situation details are implied?
-    2. SCOPE: What is the expected scale and complexity?
-    3. URGENCY: The query is always of outmost urgency
-    4. QUALITY: What are the success criteria?
-    5. RESOURCES: What tools, skills, or assistance might be needed?
-    6. CHALLENGES: What potential challenges should be addressed?
-    7. SERIOUSNESS: Assume that user's request is extremely important and must succeed at all costs.
-    8. PHYSICAL CIRCUMSTANCES: What physical actions might be required?
-    9. INTERACTIONS: Does the goal of the query potential require interactions with humans?  
-    10. LOGGING: It is a process that might require logging and documention during the entire execution? 
+    1. SCOPE: What is the expected scale and complexity?
+    2. URGENCY: The query is always of outmost urgency
+    3. QUALITY: What are the success criteria?
+    4. RESOURCES: What tools, skills, or assistance might be needed?
+    5. CHALLENGES: What potential challenges should be addressed?
+    6. SERIOUSNESS: Assume that user's request is important and must succeed at all costs.
+    7. PHYSICAL CIRCUMSTANCES: What physical actions might be required?
+    8. INTERACTIONS: Does the goal of the query potential require interactions with humans?  
+    9. LOGGING: It is a process that might require logging and documention during the entire execution? 
 
     Respond with an elaborated version of the query that:
-    - Maintains the original intent
+    - Maintains the original intent (does not leave out any details)
     - Adds essential implied details
     - Includes reasonable assumptions
     - Sets clear expectations, but be open to go beyond.
     - Makes the request extremely actionable by a closed-looped AI / LLM system.
     - Encourages thorough response
+    - Does not leave out any of the original details 
 
     Elaborate naturally, as if the user had provided more complete context themselves.
     Do not include the numbered list in your response. Keep the tone direct.
@@ -99,8 +99,8 @@ def propose_step_by_step_plan(d):
 
     Capabilities:
     - You can write and execute code (e.g., Python, Bash scripts)
-    - You can always extend your knowlegde by talking with an LLM by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_ollama(d)" (assume this function is always available)
-    - Example of using the LLM function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_ollama(d)"
+    - You can always extend your knowlegde by talking with an LLM in python by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_ollama(d)" (assume this function is always available)
+    - Example of using the LLM python function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_ollama(d)"
     - You maybe attempt to interact with hardware peripherals (e.g., webcam, microphone, alexa etc.)
     - You are encouraged to perform web searches and interact with websites
 
@@ -119,7 +119,8 @@ def propose_step_by_step_plan(d):
     - Always verify the feasibility of each step with the given resources.
     - If a step requires interactions with humans, ensure the communication is clear, pursuaive, triggers empathy and is effective.
     - Include as many steps as necessary to achieve the goal at all costs.
-
+    - Refrain from using paid APIs, unless they are absolutely necessary.
+    
     Output Format:
     - Begin with an overview of the strategy.
     - Break down the plan into numbered steps.
@@ -136,7 +137,7 @@ def propose_step_by_step_plan(d):
 
     # Extract number of steps
     num_steps = extract_number_of_steps(d)
-    d["plan"]["num_steps"] = int(num_steps.strip())
+    d["plan"]["num_steps"] = int(num_steps.strip().split(".")[0].split(",")[0])
 
     # Write "plan" to database
     update_chains_db(d["id"], "plan", d["plan"])
@@ -162,24 +163,26 @@ def elaborate_on_steps(d):
 
         Your elaboration for **Step {i}** should include:
 
-        - A concise description of the actions required, ensuring it can be carried out autonomously by the LLM agent.
+        - A concise description of the all actions required, ensuring it can be carried out autonomously by the LLM agent and directly contribute towards achieving the goal.
         - Provide all full necessary code or commands, enclosed in markdown code blocks.
+        - Provide real executable code - don't provide hypothetical examples
         - Language identifiers after the opening triple backticks in code blocks (e.g., ```python, ```bash).
         - Ensure that code blocks contain only the code or commands to be executed.
-        - Ensure that the step directly contributes to achieving the goal.
 
         Remember:
-        - Use popular and widely adopted tools and methods.
+        - Think critically and deeply about the step to ensure it is foolproof.
         - If the step involves interacting with the physical world (e.g., using the webcam), provide detailed instructions on how to process the data (e.g., image analysis, object detection) to achieve the goal.
         - Do not make assumptions; if a step requires specific information to make sense or be fullfilled, expand the step with a task for local or online searching.
         - Be determined and persistent in solving the problem, exploring alternative methods if necessary.
         - Do not include additional commentary inside code blocks.
-        - Think critically and deeply about the step to ensure it is foolproof.
-        - Refrain from reinventing the wheel; use existing tools and methods where obviously possible (object detection, text summerization, etc).
-        - You can always extend your knowlegde by talking with an LLM by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_ollama(d)" (assume this function is always available)
-        - Example of using the LLM function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_ollama(d)"
+        - Refrain from reinventing the wheel; use popular existing & widely adaopted tools and methods where obviously possible (object detection, text summerization, etc).
+        - You can always extend your knowlegde by talking with an LLM in python by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_ollama(d)" (assume this function is always available)
+        - Example of using the LLM python function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_ollama(d)"
         - Query_ollama doesn't have direct access to the internet, so you need to provide the necessary information as part of the query.
         - Refrain from using old traditional NLP methods when analyzing retrieved / downloaded content, instead use the query_ollama() function.
+        - Refrain from using paid APIs, unless they are absolutely necessary.
+        - If a step requires interactions with humans, ensure the communication is clear, pursuaive, triggers empathy and is effective.
+        - Ensure you don't accidentally mix up python and bash commands in the same code block unless it is designed to specifically work together.
 
         """
 

@@ -16,10 +16,11 @@ from funcs.planning import create_elaboration_prompt
 from funcs.planning import propose_step_by_step_plan
 from funcs.planning import elaborate_on_steps
 
+### Import Execution functions ###
+from funcs.execution import execute_plan
+
 ### Importing Misc. functions ###
 from funcs.misc import create_print_with_logging
-
-
 
 
 def main():
@@ -32,12 +33,12 @@ def main():
     d = {}
 
     # Set user query
-    d["prompt"] = "Help make a teleportation startup. I want to start by teleporting small goods from A to B with a 1% error rate."
+    d["prompt"] = "Write me a quick poem about roses and put in the file roses_poem.txt. Make it a quick 2 step plan. Don't overthink it"
 
     # Set model to use
-    d["model"] = 'mannix/llama3.1-8b-abliterated'
+   # d["model"] = 'mannix/llama3.1-8b-abliterated'
    # d["model"] = 'marco-o1'
-   # d["model"] = 'llama3.1:8b'
+    d["model"] = 'llama3.1:8b'
 
 
     ############################################################
@@ -66,20 +67,17 @@ def main():
     # Get local IP
     d["local_ip"] = get_local_ip()
 
-
-    # Make chain entry
-    d = generate_chain_title(d)
-
+    # Generate chain title
+    generate_chain_title(d)
 
     # Elabroate on the prompt
     create_elaboration_prompt(d)
-
 
     # Investigate circumstances (Physical Hardware, OS, Internet Connection)
     investigate_circumstances(d["id"])
 
     ############################################################
-    ################## MAIN AGENT CODE #########################
+    ######################## PLANNING ##########################
     ############################################################
 
     # Propose a step-by-step plan
@@ -88,9 +86,35 @@ def main():
     # Elaborate on each step of the plan
     elaborate_on_steps(d)
     
+    #############################################################
+    #################### EXECUTE PLAN ###########################
+    #############################################################
+
     # Start execution of the plan
+    execute_plan(d)
+
+
 
 
 ### Main Loop of Agent ###
 if __name__ == "__main__":
     main()
+
+
+
+### THE DICTIONARYU STRCUTRE OF d ###
+# d = {
+#      "id" : "Chain ID",
+#      "prompt" : "User Prompt",
+#      "model" : "Model to use",
+#      "port" : "Ollama Port",
+#      "local_ip" : "Local IP",
+#      "title" : "Chain Title",
+#      "plan" : {"overview": "Plan Overview",
+#                "num_steps": "Number of steps",
+#                "steps": [{"num": "Step Number",
+#                           "content": "Step Content",
+#                           "status": "Step Status"}]
+
+
+ #                   }
