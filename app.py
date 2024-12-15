@@ -2,12 +2,14 @@ import os
 import sqlite3
 import subprocess
 import signal
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, redirect, url_for
 
 app = Flask(__name__)
 
 DB_PATH = 'db/main.db'
 RESULTS_DIR = 'results'
+UPLOAD_DIR = 'uploaded_files'
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 running_process = None
 
@@ -83,8 +85,9 @@ def run_agent():
         import subprocess
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
+    # Use unbuffered Python so output streams immediately
     running_process = subprocess.Popen(
-        ['python', 'main.py', '--query', user_query, '--ip', ollama_ip, '--port', ollama_port, '--attached_files', attached_files_json],
+        ['python', '-u', 'main.py', '--query', user_query, '--ip', ollama_ip, '--port', ollama_port, '--attached_files', attached_files_json],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -118,6 +121,25 @@ def get_results():
         return jsonify([])
     files = [f for f in os.listdir(RESULTS_DIR) if os.path.isfile(os.path.join(RESULTS_DIR, f))]
     return jsonify(files)
+
+@app.route('/upload_file', methods=['POST'])
+def upload_file():
+    # Handles file uploads from the client. Store them in UPLOAD_DIR and return the server path.
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'status': 'error', 'message': 'No file provided'}), 400
+    filename = file.filename
+    server_path = os.path.join(UPLOAD_DIR, filename)
+    file.save(server_path)
+    abs_path = os.path.abspath(server_path)
+    return jsonify({'status':'ok', 'path': abs_path})
+
+@app.route('/latest_conversations', methods=['GET'])
+def latest_conversations():
+    # Returns updated conversation list
+    convs = get_conversations()
+    return jsonify(convs)
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

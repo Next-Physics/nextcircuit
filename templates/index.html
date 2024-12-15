@@ -39,8 +39,28 @@
     border-right: 1px solid #444;
   }
 
+  .sidebar-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .sidebar-top button {
+    background: #3498db;
+    border: none;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size:0.9em;
+  }
+
+  .sidebar-top button:hover {
+    background: #2980b9;
+  }
+
   .sidebar h3 {
-    margin-top: 0;
+    margin-top: 20px;
     margin-bottom: 20px;
     font-weight: 500;
   }
@@ -91,6 +111,11 @@
     align-items: center;
     margin-bottom: 10px;
     gap: 10px;
+  }
+
+  /* Make the user query box larger by using flex:2 on it */
+  #user_query {
+    flex: 2;
   }
 
   .top-bar input[type="text"] {
@@ -320,7 +345,11 @@
 <body>
   <div class="container">
     <div class="sidebar">
+      <div class="sidebar-top">
+        <button onclick="newAgent()">New Agent</button>
+      </div>
       <h3>Past Conversations</h3>
+      <div id="conversations_list">
       {% if conversations %}
         {% for conv in conversations %}
           <div class="conversation-item" data-chain-id="{{ conv.id }}">
@@ -333,21 +362,22 @@
       {% else %}
         <p style="font-size:0.9em; color:#aaa;">No past conversations found.</p>
       {% endif %}
+      </div>
     </div>
     <div class="main">
       <div class="top-bar">
         <input type="text" id="user_query" placeholder="Enter your query...">
         <input type="text" id="ollama_ip" placeholder="Ollama IP" style="width:120px;">
         <input type="text" id="ollama_port" placeholder="Port" style="width:80px;">
-        <button onclick="startAgent()">Start Agent</button>
-        <button class="stop-button" onclick="stopAgent()">Stop Agent</button>
+        <button id="start_agent_btn" onclick="startAgent()">Start Agent</button>
+        <button id="stop_agent_btn" class="stop-button" onclick="stopAgent()" style="display:none;">Stop Agent</button>
         <div class="timer">Time running: <span id="timer_value">00:00:00</span></div>
       </div>
 
       <div class="file-attachments">
         <div class="file-attachments-header">
           <button onclick="triggerFileSelect()">Add File</button>
-          <input type="file" id="file_input" style="display:none;" onchange="handleFileSelection(event)">
+          <input type="file" id="file_input" style="display:none;" onchange="uploadSelectedFile(event)">
         </div>
         <div id="attached_files_container"></div>
       </div>
@@ -378,28 +408,65 @@
     let eventSource = null;
     let timerInterval = null;
     let startTime = null;
-    let attachedFiles = [];
+    let attachedFiles = []; // Will store {id, path, description}
     let chainIdToDelete = null; // Store id temporarily for modal confirmation
+    let agentRunning = false;
+    let initialConversations = []; // Keep track to detect new chain
 
     document.addEventListener("DOMContentLoaded", function() {
       const savedIp = localStorage.getItem('ollama_ip');
       const savedPort = localStorage.getItem('ollama_port');
       if (savedIp) document.getElementById('ollama_ip').value = savedIp;
       if (savedPort) document.getElementById('ollama_port').value = savedPort;
+
+      // Store initial conv IDs to detect new ones after start
+      initialConversations = getCurrentConversationIds();
     });
+
+    function getCurrentConversationIds() {
+      const items = document.querySelectorAll('.conversation-item[data-chain-id]');
+      return Array.from(items).map(i => i.getAttribute('data-chain-id'));
+    }
+
+    function newAgent() {
+      // Reset everything for a new conversation
+      document.getElementById("output_area").textContent = "";
+      document.getElementById("user_query").value = "";
+      attachedFiles = [];
+      renderAttachedFiles();
+      stopAgentIfRunning();
+      showStartButton();
+      resetTimer();
+    }
 
     function triggerFileSelect() {
       document.getElementById('file_input').click();
     }
 
-    function handleFileSelection(event) {
+    // Upload the selected file to server and store its absolute path
+    function uploadSelectedFile(event) {
       const file = event.target.files[0];
-      if (file) {
-        const fileId = 'file_' + Date.now();
-        attachedFiles.push({id: fileId, name: file.name, description: ''});
-        renderAttachedFiles();
-      }
-      event.target.value = "";
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      fetch('/upload_file', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          const fileId = 'file_' + Date.now();
+          attachedFiles.push({id: fileId, path: data.path, description: ''});
+          renderAttachedFiles();
+        }
+      })
+      .catch(console.error)
+      .finally(() => {
+        event.target.value = "";
+      });
     }
 
     function renderAttachedFiles() {
@@ -410,7 +477,7 @@
         div.className = 'file-item';
 
         const fileNameSpan = document.createElement('span');
-        fileNameSpan.textContent = fileObj.name;
+        fileNameSpan.textContent = fileObj.path; // show the server path
 
         const descInput = document.createElement('input');
         descInput.type = 'text';
@@ -436,6 +503,7 @@
 
     function startAgent() {
       if (eventSource) eventSource.close();
+      if (agentRunning) return; // Already running
 
       const ip = document.getElementById("ollama_ip").value;
       const port = document.getElementById("ollama_port").value;
@@ -451,7 +519,7 @@
 
       document.getElementById("output_area").textContent = "Starting agent...\n";
 
-      const filesData = attachedFiles.map(f => ({name: f.name, description: f.description || ''}));
+      const filesData = attachedFiles.map(f => ({path: f.path, description: f.description || ''}));
       const filesJson = JSON.stringify(filesData);
 
       const params = new URLSearchParams({
@@ -465,6 +533,7 @@
 
       eventSource.onmessage = function(e) {
         if (e.data === "[DONE]") {
+          // Agent finished
           eventSource.close();
           eventSource = null;
           document.getElementById("output_area").textContent += "\nAgent finished.\n";
@@ -472,15 +541,65 @@
             clearInterval(timerInterval);
             timerInterval = null;
           }
+          showStartButton();
+          agentRunning = false;
         } else {
+          // Append new output line
           document.getElementById("output_area").textContent += e.data + "\n";
+          const output = document.getElementById("output_area");
+          output.scrollTop = output.scrollHeight;
         }
-        const output = document.getElementById("output_area");
-        output.scrollTop = output.scrollHeight;
       };
+
+      agentRunning = true;
+      showStopButton();
+
+      // After a short delay, check if a new chain was added
+      setTimeout(checkForNewConversation, 10000);
+    }
+
+    
+    function checkForNewConversation() {
+      fetch('/latest_conversations')
+      .then(res => res.json())
+      .then(convs => {
+        const currentIds = getCurrentConversationIds();
+        // Find any conversation in convs that's not in currentIds or initialConversations
+        for (let c of convs) {
+          if (!initialConversations.includes(String(c.id)) && !currentIds.includes(String(c.id))) {
+            // New conversation found
+            addConversationToSidebar(c.id, c.title);
+            initialConversations.push(String(c.id));
+          }
+        }
+      });
+    }
+
+    function addConversationToSidebar(chain_id, title) {
+      const container = document.getElementById('conversations_list');
+      const div = document.createElement('div');
+      div.className = 'conversation-item';
+      div.setAttribute('data-chain-id', chain_id);
+
+      const titleDiv = document.createElement('div');
+      titleDiv.className = 'conversation-title';
+      titleDiv.textContent = `${title} | ${chain_id}`;
+      titleDiv.onclick = () => loadConversation(chain_id);
+
+      const deleteDiv = document.createElement('div');
+      deleteDiv.className = 'delete-conversation';
+      deleteDiv.textContent = '🗑️';
+      deleteDiv.onclick = (ev) => promptDeleteConversation(ev, chain_id);
+
+      div.appendChild(titleDiv);
+      div.appendChild(deleteDiv);
+
+      // Prepend the new conversation at the top
+      container.insertBefore(div, container.firstChild);
     }
 
     function stopAgent() {
+      if (!agentRunning) return; 
       fetch("/stop_agent", {
         method: "POST"
       })
@@ -496,8 +615,35 @@
             clearInterval(timerInterval);
             timerInterval = null;
           }
+          showStartButton();
+          agentRunning = false;
         }
       });
+    }
+
+    function stopAgentIfRunning() {
+      if (agentRunning) {
+        stopAgent();
+      }
+    }
+
+    function showStartButton() {
+      document.getElementById("start_agent_btn").style.display = "inline-block";
+      document.getElementById("stop_agent_btn").style.display = "none";
+    }
+
+    function showStopButton() {
+      document.getElementById("start_agent_btn").style.display = "none";
+      document.getElementById("stop_agent_btn").style.display = "inline-block";
+    }
+
+    function resetTimer() {
+      document.getElementById("timer_value").textContent = "00:00:00";
+      startTime = null;
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
     }
 
     function loadConversation(id) {
@@ -509,6 +655,8 @@
       .then(response => response.json())
       .then(data => {
         document.getElementById("output_area").textContent = data.history || "No history found.";
+        const output = document.getElementById("output_area");
+        output.scrollTop = output.scrollHeight;
       });
     }
 
@@ -541,6 +689,7 @@
         if (data.status === "deleted") {
           const item = document.querySelector(`.conversation-item[data-chain-id='${chainIdToDelete}']`);
           if (item) item.remove();
+          initialConversations = initialConversations.filter(cid => cid !== String(chainIdToDelete));
         }
         closeDeleteModal();
       })
