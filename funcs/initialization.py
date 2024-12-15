@@ -46,6 +46,8 @@ def setup_dbs():
                  chain_title TEXT, 
                  user_query TEXT,
                  plan TEXT,
+                 curret_step TEXT,
+                 attached_files TEXT,
                  proof_of_achievement TEXT, 
                  detected_hardware TEXT,
                  detected_os TEXT,

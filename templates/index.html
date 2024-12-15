@@ -29,7 +29,6 @@
     max-height: 100%;
   }
 
-  /* Sidebar */
   .sidebar {
     background: #2f3640;
     color: #ffffff;
@@ -46,23 +45,38 @@
     font-weight: 500;
   }
 
-  .conversation-title {
-    cursor: pointer;
-    margin-bottom: 10px;
-    padding: 8px;
-    border-radius: 6px;
+  .conversation-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     background: #3a4052;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 10px;
     transition: background 0.2s;
     font-size: 0.95em;
     line-height: 1.4em;
     word-wrap: break-word;
   }
 
-  .conversation-title:hover {
+  .conversation-item:hover {
     background: #4b5163;
   }
 
-  /* Main Content */
+  .conversation-title {
+    cursor: pointer;
+    flex: 1;
+  }
+
+  .delete-conversation {
+    cursor: pointer;
+    margin-left: 10px;
+  }
+
+  .delete-conversation:hover {
+    opacity: 0.8;
+  }
+
   .main {
     display: flex;
     flex-direction: column;
@@ -83,7 +97,6 @@
     padding: 8px;
     border: 1px solid #ccc;
     border-radius: 6px;
-    flex: 1;
     font-size: 0.95em;
   }
 
@@ -107,6 +120,56 @@
     color: #555;
     margin-left: auto;
     padding: 0 8px;
+    white-space: nowrap;
+  }
+
+  .top-bar button.stop-button {
+    background: #e74c3c;
+  }
+  .top-bar button.stop-button:hover {
+    background: #c0392b;
+  }
+
+  .file-attachments {
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .file-attachments-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fafafa;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 0.9em;
+  }
+
+  .file-item input[type="text"] {
+    flex: 1;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px;
+    font-size: 0.9em;
+  }
+
+  .file-item .remove-file {
+    cursor: pointer;
+    background: #e74c3c;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.8em;
   }
 
   .split-view {
@@ -117,22 +180,8 @@
     gap: 10px;
   }
 
-  /* We'll have three sections: output-area, conversation-history, results-box */
   .output-area {
     flex: 2;
-    background: #fafafa;
-    border: 1px solid #ccc;
-    padding: 15px;
-    border-radius: 6px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 0.9em;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
-  }
-
-  .conversation-history {
-    flex: 1;
     background: #fafafa;
     border: 1px solid #ccc;
     padding: 15px;
@@ -173,21 +222,18 @@
     word-wrap: break-word;
   }
 
-  /* Scrollbars */
-  .output-area, .conversation-history, .results-box, .sidebar {
+  .output-area, .results-box, .sidebar {
     scrollbar-width: thin;
     scrollbar-color: #ccc #f0f0f0;
   }
 
   .output-area::-webkit-scrollbar,
-  .conversation-history::-webkit-scrollbar,
   .results-box::-webkit-scrollbar,
   .sidebar::-webkit-scrollbar {
     width: 8px;
   }
 
   .output-area::-webkit-scrollbar-thumb,
-  .conversation-history::-webkit-scrollbar-thumb,
   .results-box::-webkit-scrollbar-thumb,
   .sidebar::-webkit-scrollbar-thumb {
     background: #ccc;
@@ -195,7 +241,6 @@
   }
 
   .output-area::-webkit-scrollbar-track,
-  .conversation-history::-webkit-scrollbar-track,
   .results-box::-webkit-scrollbar-track,
   .sidebar::-webkit-scrollbar-track {
     background: #f0f0f0;
@@ -211,18 +256,63 @@
       overflow-x: auto;
       height: auto;
     }
-    .conversation-title {
+    .conversation-item {
       margin-right: 10px;
       margin-bottom: 10px;
     }
   }
 
-  /* Stop button styling */
-  .top-bar button.stop-button {
-    background: #e74c3c;
+  /* Modal styles */
+  .modal-overlay {
+    position: fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
   }
-  .top-bar button.stop-button:hover {
-    background: #c0392b;
+
+  .modal-overlay.active {
+    display: flex;
+  }
+
+  .modal-box {
+    background: #fff;
+    padding: 20px;
+    border-radius: 6px;
+    max-width: 300px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    text-align: center;
+  }
+
+  .modal-box h4 {
+    margin-top:0;
+  }
+
+  .modal-actions {
+    margin-top:20px;
+    display:flex;
+    justify-content: space-around;
+  }
+
+  .modal-actions button {
+    padding: 8px 12px;
+    border-radius: 4px;
+    border:none;
+    cursor:pointer;
+    font-size:0.9em;
+  }
+
+  .modal-actions .cancel-btn {
+    background: #ccc;
+    color: #333;
+  }
+
+  .modal-actions .delete-btn {
+    background:#e74c3c;
+    color:#fff;
   }
 
 </style>
@@ -233,8 +323,11 @@
       <h3>Past Conversations</h3>
       {% if conversations %}
         {% for conv in conversations %}
-          <div class="conversation-title" onclick="loadConversation('{{ conv.title }}')">
-            {{ conv.title }}
+          <div class="conversation-item" data-chain-id="{{ conv.id }}">
+            <div class="conversation-title" onclick="loadConversation('{{ conv.id }}')">
+              {{ conv.title }} | {{ conv.id }}
+            </div>
+            <div class="delete-conversation" onclick="promptDeleteConversation(event, '{{ conv.id }}')">🗑️</div>
           </div>
         {% endfor %}
       {% else %}
@@ -244,15 +337,23 @@
     <div class="main">
       <div class="top-bar">
         <input type="text" id="user_query" placeholder="Enter your query...">
-        <input type="text" id="ollama_ip" placeholder="Ollama IP" value="localhost" style="width:120px;">
-        <input type="text" id="ollama_port" placeholder="Port" value="11411" style="width:80px;">
+        <input type="text" id="ollama_ip" placeholder="Ollama IP" style="width:120px;">
+        <input type="text" id="ollama_port" placeholder="Port" style="width:80px;">
         <button onclick="startAgent()">Start Agent</button>
         <button class="stop-button" onclick="stopAgent()">Stop Agent</button>
         <div class="timer">Time running: <span id="timer_value">00:00:00</span></div>
       </div>
+
+      <div class="file-attachments">
+        <div class="file-attachments-header">
+          <button onclick="triggerFileSelect()">Add File</button>
+          <input type="file" id="file_input" style="display:none;" onchange="handleFileSelection(event)">
+        </div>
+        <div id="attached_files_container"></div>
+      </div>
+
       <div class="split-view">
         <div class="output-area" id="output_area"></div>
-        <div class="conversation-history" id="conversation_history"></div>
         <div class="results-box">
           <h4>Results</h4>
           <ul class="results-list" id="results_list"></ul>
@@ -261,31 +362,103 @@
     </div>
   </div>
 
+  <!-- Custom Modal for Delete Confirmation -->
+  <div class="modal-overlay" id="delete_modal">
+    <div class="modal-box">
+      <h4>Delete Conversation?</h4>
+      <p>Are you sure you want to delete this conversation?</p>
+      <div class="modal-actions">
+        <button class="cancel-btn" onclick="closeDeleteModal()">Cancel</button>
+        <button class="delete-btn" onclick="deleteConversationConfirmed()">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let eventSource = null;
     let timerInterval = null;
     let startTime = null;
+    let attachedFiles = [];
+    let chainIdToDelete = null; // Store id temporarily for modal confirmation
+
+    document.addEventListener("DOMContentLoaded", function() {
+      const savedIp = localStorage.getItem('ollama_ip');
+      const savedPort = localStorage.getItem('ollama_port');
+      if (savedIp) document.getElementById('ollama_ip').value = savedIp;
+      if (savedPort) document.getElementById('ollama_port').value = savedPort;
+    });
+
+    function triggerFileSelect() {
+      document.getElementById('file_input').click();
+    }
+
+    function handleFileSelection(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const fileId = 'file_' + Date.now();
+        attachedFiles.push({id: fileId, name: file.name, description: ''});
+        renderAttachedFiles();
+      }
+      event.target.value = "";
+    }
+
+    function renderAttachedFiles() {
+      const container = document.getElementById('attached_files_container');
+      container.innerHTML = "";
+      attachedFiles.forEach(fileObj => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+
+        const fileNameSpan = document.createElement('span');
+        fileNameSpan.textContent = fileObj.name;
+
+        const descInput = document.createElement('input');
+        descInput.type = 'text';
+        descInput.placeholder = 'Description (optional)';
+        descInput.value = fileObj.description;
+        descInput.oninput = () => fileObj.description = descInput.value;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = 'Remove';
+        removeBtn.className = 'remove-file';
+        removeBtn.onclick = () => {
+          attachedFiles = attachedFiles.filter(f => f.id !== fileObj.id);
+          renderAttachedFiles();
+        };
+
+        div.appendChild(fileNameSpan);
+        div.appendChild(descInput);
+        div.appendChild(removeBtn);
+
+        container.appendChild(div);
+      });
+    }
 
     function startAgent() {
-      // Close any previous stream
       if (eventSource) eventSource.close();
 
-      // Reset timer
+      const ip = document.getElementById("ollama_ip").value;
+      const port = document.getElementById("ollama_port").value;
+      localStorage.setItem('ollama_ip', ip);
+      localStorage.setItem('ollama_port', port);
+
       startTime = Date.now();
       if (timerInterval) clearInterval(timerInterval);
       updateTimer();
       timerInterval = setInterval(updateTimer, 1000);
 
       const query = document.getElementById("user_query").value;
-      const ip = document.getElementById("ollama_ip").value;
-      const port = document.getElementById("ollama_port").value;
 
       document.getElementById("output_area").textContent = "Starting agent...\n";
+
+      const filesData = attachedFiles.map(f => ({name: f.name, description: f.description || ''}));
+      const filesJson = JSON.stringify(filesData);
 
       const params = new URLSearchParams({
         user_query: query,
         ollama_ip: ip,
-        ollama_port: port
+        ollama_port: port,
+        attached_files: filesJson
       }).toString();
 
       eventSource = new EventSource("/run_agent?" + params, { withCredentials: true });
@@ -327,15 +500,52 @@
       });
     }
 
-    function loadConversation(title) {
+    function loadConversation(id) {
       fetch("/get_conversation", {
         method: "POST",
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: new URLSearchParams({title: title})
+        body: new URLSearchParams({id: id})
       })
       .then(response => response.json())
       .then(data => {
-        document.getElementById("conversation_history").textContent = data.history || "No history found.";
+        document.getElementById("output_area").textContent = data.history || "No history found.";
+      });
+    }
+
+    function promptDeleteConversation(event, id) {
+      event.stopPropagation();
+      chainIdToDelete = id;
+      openDeleteModal();
+    }
+
+    function openDeleteModal() {
+      const modal = document.getElementById('delete_modal');
+      modal.classList.add('active');
+    }
+
+    function closeDeleteModal() {
+      const modal = document.getElementById('delete_modal');
+      modal.classList.remove('active');
+      chainIdToDelete = null;
+    }
+
+    function deleteConversationConfirmed() {
+      if (!chainIdToDelete) return;
+      fetch("/delete_conversation", {
+        method: "POST",
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({id: chainIdToDelete})
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "deleted") {
+          const item = document.querySelector(`.conversation-item[data-chain-id='${chainIdToDelete}']`);
+          if (item) item.remove();
+        }
+        closeDeleteModal();
+      })
+      .catch(() => {
+        closeDeleteModal();
       });
     }
 
@@ -373,9 +583,7 @@
       });
     }
 
-    // Poll the results directory every 5 seconds
     setInterval(refreshResults, 5000);
-    // Initial load
     refreshResults();
   </script>
 </body>

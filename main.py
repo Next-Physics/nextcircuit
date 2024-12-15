@@ -1,12 +1,12 @@
 ### Module imports ###
-import os
+import os, argparse, sys
 import builtins
 
 ### Importing Initialization functions ###
 from funcs.initialization import setup_dirs
 from funcs.initialization import setup_dbs
-from funcs.initialization import get_ollama_port
-from funcs.initialization import get_local_ip
+# from funcs.initialization import get_ollama_port
+# from funcs.initialization import get_local_ip
 from funcs.initialization import investigate_circumstances
 from funcs.initialization import generate_chain_title
 from funcs.initialization import generate_new_chain_id
@@ -23,6 +23,14 @@ from funcs.execution import execute_plan
 ### Importing Misc. functions ###
 from funcs.misc import create_print_with_logging
 
+### Argument Parser ###
+parser = argparse.ArgumentParser(description='Ollama Agent')
+parser.add_argument('--port', type=int, default=11411, help='Ollama Port')
+parser.add_argument('--ip', type=str, default='localhost', help='Local IP')
+parser.add_argument('--query', type=str, default='llama3.1:8b', help='Model to use')
+parser.add_argument('--attached_files', type=str, default='llama3.1:8b', help='Model to use')
+args = parser.parse_args()
+
 
 def main():
 
@@ -34,12 +42,15 @@ def main():
     d = {}
 
     # Set user query
-    d["prompt"] = "Help me cure my brain cancer using oncolytic virus quickly!. From design to bioreactor production."
-
+    #d["prompt"] = "Help me cure my brain cancer using oncolytic virus quickly!. From design to bioreactor production."
+    d["prompt"] = args.query
+    d["attached_files"] = args.attached_files
     # Set model to use
     d["model"] = 'mannix/llama3.1-8b-abliterated'
    # d["model"] = 'marco-o1'
   #  d["model"] = 'llama3.1:8b'
+
+    ####
 
     ############################################################
     #################### INITIALIZATION ########################
@@ -59,13 +70,16 @@ def main():
     # Overwrite print function to also log to database
     builtins.print = create_print_with_logging(d["id"])
 
+    print(d)
+
     print("PROMPT: ", d["prompt"])
     print("")
-    # Get Ollama port
-    d["port"] = get_ollama_port()
+
+    # Get Ollama port from arg parse
+    d["port"] = args.port
 
     # Get local IP
-    d["local_ip"] = get_local_ip()
+    d["local_ip"] = args.ip
 
 
     # Category content
