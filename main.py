@@ -79,7 +79,7 @@ def main():
     create_elaboration_prompt(d)
 
     # Investigate circumstances (Physical Hardware, OS, Internet Connection)
-    investigate_circumstances(d["id"])
+    investigate_circumstances(d)
 
     ############################################################
     ######################## PLANNING ##########################

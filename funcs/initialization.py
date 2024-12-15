@@ -207,22 +207,25 @@ def update_chain_title(d):
     conn.close()
 
 
-def investigate_circumstances(chain_id):
+def investigate_circumstances(d):
 
+    chain_id = d["id"]
     print("Investigating physical circumstances and updating DB...")
 
     # Detect the OS
     detected_os = investigate_platform()
+    d["detected_os"] = detected_os
     update_chains_db(chain_id,"detected_os",detected_os)
 
     # Detect the hardware
     detected_hardware = investigate_hardware()
+    d["detected_hardware"] = detected_hardware
     update_chains_db(chain_id,"detected_hardware",detected_hardware)
 
     # Check for internet connection
     internet_connection = check_internet_connection()
+    d["internet_connection"] = internet_connection
     update_chains_db(chain_id,"internet_connection",internet_connection)
-
 
     print("Updated DB with physical circumstances...")
     print("Success!\n")
