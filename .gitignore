@@ -1,0 +1,3 @@
+db/main.db
+*.pyc
+output.txt
