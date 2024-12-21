@@ -149,10 +149,46 @@ def propose_step_by_step_plan(d):
     return d
 
 
+
+def extract_step_titles(d):
+
+    print("Extracting steps...")
+    # Initialize 'steps' if it doesn't exist
+    if "steps" not in d["plan"]:
+        d["plan"]["steps"] = {}
+
+    # Loop through each step
+    for i in range(1, d["plan"]["num_steps"] + 1):
+        d["exe_prompt"] = f""" You are an expert at text extract. Please extract the title of step {i} of the following plan:
+
+        '{d['plan']['overview']}'
+
+        You should remove the ** Chareters along with the step number and return the TITLE of the step.
+
+        What is the extracted step title of step {i}? Return only the extracted step title text only.
+
+        """
+
+        step_title = query_ollama(d)
+
+
+        d["plan"]["steps"][i] = {
+            "step_title": step_title,
+            "status": "pending"
+            }
+
+        # Write to database
+        update_chains_db(d["id"], "plan", d["plan"])
+
 def elaborate_on_steps(d):
 
     for i in range(1, d["plan"]["num_steps"] + 1):
+        
+        # Update status to "elaborating"
+        d["plan"]["steps"][i]["status"] = "elaborating"
+        update_chains_db(d["id"], "plan", d["plan"])
 
+        # Elaborate on step
         print(f"\n--------------------------Elaborating on Step {i}---------------------------")
 
         d["exe_prompt"] = f"""
@@ -191,33 +227,14 @@ def elaborate_on_steps(d):
 
         """
 
+        # Elaborate on step
         step_elaboration = query_ollama(d)
 
+        # Update status to "elaborated"
+        d["plan"]["steps"][i]["elaboration"] = step_elaboration
 
-        d["exe_prompt"] = f""" You are an expert at text extract. Please extract the title of step {i} of the following plan:
-
-        '{d['plan']['overview']}'
-
-        You should remove the ** Chareters along with the step number and return the TITLE of the step.
-
-        What is the extracted step title of step {i}? Return only the extracted step title text only.
-
-        """
-        print("\n")
-        print("ELABORATION SUMMERY:")
-        step_title = query_ollama(d)
-        print("\n")
-
-
-        # Initialize 'steps' if it doesn't exist
-        if "steps" not in d["plan"]:
-            d["plan"]["steps"] = {}
-
-        d["plan"]["steps"][i] = {
-            "elaboration": step_elaboration,
-            "step_title": step_title,
-            "status": "pending"
-            }
+        # Set status back to pending
+        d["plan"]["steps"][i]["status"] = "pending"
 
         # Write to database
         update_chains_db(d["id"], "plan", d["plan"])

@@ -25,6 +25,16 @@ def setup_dirs(script_folder,d):
         if directory == "results":
             d["results_dir"] = dir_path
 
+
+def create_chain_results_dir(d):
+    chain_id = d["id"]
+    results_dir = os.path.join(d["results_dir"], str(chain_id))
+    os.makedirs(results_dir, exist_ok=True)
+
+    # Assign dir to d["results_dir"]
+    d["results_dir"] = results_dir
+    return results_dir
+
 ### Setup sqlite3 databases to store progress and data###
 def setup_dbs():
 

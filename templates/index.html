@@ -105,7 +105,7 @@
     gap: 10px;
   }
   #user_query {
-    flex: 2; /* bigger than the IP/Port fields */
+    flex: 2; /* bigger than IP/Port */
   }
   .top-bar input[type="text"] {
     padding: 8px;
@@ -248,15 +248,41 @@
     padding: 10px;
     font-size: 0.9em;
     display: flex;
-    align-items: flex-start;
-    gap: 8px;
+    flex-direction: column; /* changed to column to show a progress bar below bold text */
+    gap: 5px;
   }
   .plan-step .step-icon {
     font-size: 1.2em;
+    margin-right: 5px;
   }
-  .plan-step .step-text {
-    flex: 1;
-    overflow-wrap: break-word;
+  .plan-step-header {
+    display: flex;
+    align-items: center;
+    font-weight: 600; /* bold text */
+  }
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    position: relative;
+    overflow: hidden;
+    background: #ddd;
+    border-radius: 4px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    background: #f1c40f; /* default to yellow for elaborating */
+    animation: progressAnim 1s linear infinite;
+  }
+  @keyframes progressAnim {
+    0%   { left: -100%; }
+    100% { left: 100%; }
+  }
+  .awaiting-plan {
+    font-size: 0.9em;
+    color: #666;
+    font-style: italic;
   }
 
   /* SCROLLBARS */
@@ -286,7 +312,6 @@
 
   /* RESPONSIVE */
   @media (max-width: 992px) {
-    /* Possibly hide or stack the right sidebar */
     .container {
       grid-template-columns: 280px 1fr;
       grid-template-rows: auto auto;
@@ -353,7 +378,7 @@
 </head>
 <body>
   <div class="container">
-    <!-- LEFT SIDEBAR -->
+    <!-- LEFT SIDEBAR (PAST CONVERSATIONS) -->
     <div class="sidebar">
       <div class="sidebar-top">
         <button onclick="newAgent()">New Agent</button>
@@ -407,7 +432,7 @@
     <div class="sidebar-right">
       <h3>Plan Steps</h3>
       <div id="plan_steps_container">
-        <!-- Steps are dynamically rendered here -->
+        <!-- Steps or placeholders get inserted here -->
       </div>
     </div>
   </div>
@@ -433,7 +458,7 @@
     let agentRunning = false;
     let initialConversations = [];
     let activeChainId = null;
-    let planInterval = null; // for polling plan steps
+    let planInterval = null;
 
     document.addEventListener("DOMContentLoaded", function() {
       const savedIp = localStorage.getItem('ollama_ip');
@@ -450,17 +475,18 @@
     }
 
     function newAgent() {
-      // Reset everything
       document.getElementById("output_area").textContent = "";
       document.getElementById("user_query").value = "";
+      document.getElementById("user_query").disabled = false; // re-enable for a new query
       attachedFiles = [];
       renderAttachedFiles();
       stopAgentIfRunning();
       showStartButton();
       resetTimer();
-      // Clear plan UI
-      renderPlanSteps([]);
+      renderPlanSteps([]); // Clear plan
       activeChainId = null;
+      // Clear results list
+      document.getElementById("results_list").innerHTML = "";
     }
 
     function triggerFileSelect() {
@@ -528,6 +554,9 @@
       if (eventSource) eventSource.close();
       if (agentRunning) return;
 
+      // Once agent starts, disable the query field
+      document.getElementById("user_query").disabled = true;
+
       const ip = document.getElementById("ollama_ip").value;
       const port = document.getElementById("ollama_port").value;
       localStorage.setItem('ollama_ip', ip);
@@ -574,10 +603,10 @@
 
       agentRunning = true;
       showStopButton();
-      // Check for new conversation after a short delay
+
       setTimeout(checkForNewConversation, 1000);
 
-      // Show a placeholder step in plan
+      // Show initial placeholder to user if no plan is loaded yet
       renderPlanStepsPlaceholder();
     }
 
@@ -591,7 +620,7 @@
             // new conversation found
             addConversationToSidebar(c.id, c.title);
             initialConversations.push(String(c.id));
-            activeChainId = c.id; // assume this is the newly created chain
+            activeChainId = c.id;
             startPlanPolling();
           }
         }
@@ -654,6 +683,8 @@
     function showStartButton() {
       document.getElementById("start_agent_btn").style.display = "inline-block";
       document.getElementById("stop_agent_btn").style.display = "none";
+      // re-enable query? Only if you want them to start a brand new agent
+      // document.getElementById("user_query").disabled = false;
     }
 
     function showStopButton() {
@@ -671,7 +702,7 @@
     }
 
     function loadConversation(id) {
-      // Load conversation history
+      // Load conversation history + user_query
       fetch("/get_conversation", {
         method: "POST",
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -680,6 +711,11 @@
       .then(response => response.json())
       .then(data => {
         document.getElementById("output_area").textContent = data.history || "No history found.";
+
+        // Show the user_query in the input and disable it
+        document.getElementById("user_query").value = data.user_query || "";
+        document.getElementById("user_query").disabled = true;
+
         const output = document.getElementById("output_area");
         output.scrollTop = output.scrollHeight;
       });
@@ -720,6 +756,7 @@
           if (activeChainId === chainIdToDelete) {
             renderPlanSteps([]);
             activeChainId = null;
+            document.getElementById("results_list").innerHTML = "";
           }
         }
         closeDeleteModal();
@@ -750,6 +787,8 @@
         planInterval = setInterval(fetchPlanSteps, 3000);
         fetchPlanSteps();
       }
+      // Also refresh the results for that chain
+      refreshResults();
     }
 
     function fetchPlanSteps() {
@@ -758,89 +797,142 @@
       .then(res => res.json())
       .then(data => {
         if (!data.plan) {
-          // No plan yet - do nothing or keep placeholders
+          // Show "Awaiting plan" if we have no plan yet
+          showAwaitingPlan();
           return;
         }
         const plan = data.plan;
-        if (!plan.steps) return; // plan might have "num_steps" but no steps array yet
-        renderPlanSteps(plan.steps);
+        // If no num_steps, also show "Awaiting plan"
+        if (!plan.num_steps) {
+          showAwaitingPlan();
+          return;
+        }
+        // Otherwise, we have a num_steps
+        const total = plan.num_steps;
+        const stepsDict = plan.steps || {};
+        renderPlanSteps({ num_steps: total, steps: stepsDict });
       })
       .catch(err => console.error(err));
     }
 
-    function renderPlanSteps(steps) {
-      // steps is presumably an object with integer keys
-      // or maybe a list; adapt as needed
+    function showAwaitingPlan() {
+      const container = document.getElementById('plan_steps_container');
+      container.innerHTML = `<div class="awaiting-plan">Awaiting plan...</div>`;
+    }
+
+    function renderPlanSteps(dataObj) {
       const container = document.getElementById('plan_steps_container');
       container.innerHTML = "";
 
-      // If "steps" is a dict with integer keys, convert to a sorted array
-      let stepArray = [];
-      if (!Array.isArray(steps)) {
-        // assume an object with integer keys
-        Object.keys(steps)
-          .sort((a,b)=> parseInt(a) - parseInt(b))
-          .forEach(k => {
-            stepArray.push(steps[k]);
-          });
-      } else {
-        // "steps" is already an array
-        stepArray = steps;
+      const { num_steps, steps } = dataObj;
+      for (let i = 1; i <= num_steps; i++) {
+        let step = steps[i];
+        if (step) {
+          const status = step.status || "pending";
+          const icon = getStepIcon(status);
+          const text = step.step_title || step.elaboration || "... (awaiting details)";
+          const shortText = shortSummary(text, 50);
+
+          // Create a plan-step container
+          const stepDiv = document.createElement('div');
+          stepDiv.className = "plan-step";
+
+          // Header row with icon + "Step i) text"
+          const headerDiv = document.createElement('div');
+          headerDiv.className = "plan-step-header";
+
+          const iconSpan = document.createElement('span');
+          iconSpan.className = "step-icon";
+          iconSpan.textContent = icon;
+
+          const titleSpan = document.createElement('span');
+          titleSpan.textContent = `Step ${i}) ${shortText}`;
+
+          headerDiv.appendChild(iconSpan);
+          headerDiv.appendChild(titleSpan);
+
+          stepDiv.appendChild(headerDiv);
+
+          // If elaborating or in_progress, show a progress bar
+          if (status === "elaborating" || status === "in_progress") {
+            const bar = document.createElement('div');
+            bar.className = "progress-bar";
+
+            const fill = document.createElement('div');
+            fill.className = "progress-bar-fill";
+
+            // Yellow for "elaborating", Blue for "in_progress"
+            fill.style.background = (status === "elaborating") ? "#f1c40f" : "#3498db";
+
+            // Also add the bold text inside
+            const label = (status === "elaborating") ? "Elaborating..." : "In progress...";
+            // We can do this as a pseudo-element or simply a row above the bar. 
+            // For simplicity, let's place a bold text in a separate div, then the bar below:
+            const boldLine = document.createElement('div');
+            boldLine.style.fontWeight = 'bold';
+            boldLine.textContent = label;
+            stepDiv.appendChild(boldLine);
+
+            bar.appendChild(fill);
+            stepDiv.appendChild(bar);
+          }
+
+          container.appendChild(stepDiv);
+        } else {
+          // Step placeholder
+          const placeholderDiv = document.createElement('div');
+          placeholderDiv.className = "plan-step";
+
+          const headerDiv = document.createElement('div');
+          headerDiv.className = "plan-step-header";
+
+          const iconSpan = document.createElement('span');
+          iconSpan.className = "step-icon";
+          iconSpan.textContent = "🔘";
+
+          const titleSpan = document.createElement('span');
+          titleSpan.textContent = `Step ${i}) ... (awaiting title)`;
+
+          headerDiv.appendChild(iconSpan);
+          headerDiv.appendChild(titleSpan);
+          placeholderDiv.appendChild(headerDiv);
+
+          container.appendChild(placeholderDiv);
+        }
       }
-
-      stepArray.forEach((step, index) => {
-        const icon = getStepIcon(step.status || "pending");
-        const shortText = shortSummary(step.step_title || step.elaboration || "", 50);
-
-        const stepDiv = document.createElement('div');
-        stepDiv.className = "plan-step";
-
-        const iconSpan = document.createElement('span');
-        iconSpan.className = "step-icon";
-        iconSpan.textContent = icon;
-
-        const textDiv = document.createElement('div');
-        textDiv.className = "step-text";
-
-        // "Step i) Title"
-        // If we use index from stepArray, it might be offset from the original numbering,
-        // or we can show step number from the dict key, your call:
-        const stepNumber = index + 1;
-        let displayText = `Step ${stepNumber}) ${shortText}`;
-
-        textDiv.textContent = displayText;
-
-        stepDiv.appendChild(iconSpan);
-        stepDiv.appendChild(textDiv);
-        container.appendChild(stepDiv);
-      });
     }
 
     function renderPlanStepsPlaceholder() {
       const container = document.getElementById('plan_steps_container');
       container.innerHTML = "";
 
+      // Single placeholder
       const stepDiv = document.createElement('div');
       stepDiv.className = "plan-step";
+
+      const headerDiv = document.createElement('div');
+      headerDiv.className = "plan-step-header";
 
       const iconSpan = document.createElement('span');
       iconSpan.className = "step-icon";
       iconSpan.textContent = "🔘";
 
-      const textDiv = document.createElement('div');
-      textDiv.className = "step-text";
-      textDiv.textContent = "Step 1) ... (awaiting plan)";
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = "Step 1) ... (awaiting plan)";
 
-      stepDiv.appendChild(iconSpan);
-      stepDiv.appendChild(textDiv);
+      headerDiv.appendChild(iconSpan);
+      headerDiv.appendChild(titleSpan);
 
+      stepDiv.appendChild(headerDiv);
       container.appendChild(stepDiv);
     }
 
     function getStepIcon(status) {
+      // existing statuses + new ones
       switch (status) {
         case "pending":      return "🔘";
         case "in_progress":  return "⏳";
+        case "elaborating":  return "⏳"; // same base icon, but separate color
         case "completed":    return "✅";
         default:             return "🔘";
       }
@@ -854,12 +946,13 @@
     /* ---------- END PLAN STEPS SIDEBAR ---------- */
 
     function refreshResults() {
-      fetch("/get_results")
+      if (!activeChainId) return;
+      fetch(`/get_results/${activeChainId}`)
       .then(res => res.json())
       .then(files => {
         const list = document.getElementById("results_list");
         list.innerHTML = "";
-        if (files.length === 0) {
+        if (!files || files.length === 0) {
           const li = document.createElement("li");
           li.textContent = "No files found.";
           list.appendChild(li);
@@ -873,8 +966,9 @@
       });
     }
 
+    // Poll the chain-specific results folder every 5 seconds
     setInterval(refreshResults, 5000);
-    refreshResults();
+    // initial call if needed
   </script>
 </body>
 </html>

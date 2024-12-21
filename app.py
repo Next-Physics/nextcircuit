@@ -9,9 +9,12 @@ from flask import Flask, render_template, request, jsonify, Response
 app = Flask(__name__)
 
 DB_PATH = 'db/main.db'
-RESULTS_DIR = 'results'
 UPLOAD_DIR = 'uploaded_files'
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# We no longer have a global results folder read. Instead, we read from results/<chain_id>/.
+# If you still want a default fallback, you can define it here.
+# e.g. RESULTS_DIR = 'results'
 
 running_process = None
 
@@ -21,7 +24,13 @@ def get_conversations():
         return []
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, chain_title, history, chain_last_modified FROM chains ORDER BY chain_last_modified DESC")
+    # We assume there's a column user_query in chains.
+    # We'll also fetch id, chain_title, history, chain_last_modified
+    cursor.execute("""
+        SELECT id, chain_title, history, chain_last_modified, user_query
+          FROM chains
+         ORDER BY chain_last_modified DESC
+    """)
     rows = cursor.fetchall()
     conn.close()
     conversations = []
@@ -30,7 +39,8 @@ def get_conversations():
             'id': r[0],
             'title': r[1],
             'history': r[2],
-            'last_modified': r[3]
+            'last_modified': r[3],
+            'user_query': r[4] if len(r) > 4 else ''
         })
     return conversations
 
@@ -42,20 +52,24 @@ def index():
 
 @app.route('/get_conversation', methods=['POST'])
 def get_conversation():
-    """Returns the conversation history for a given conversation ID."""
+    """Returns the conversation history + user_query for a given conversation ID."""
     chain_id = request.form.get('id', '')
     if not os.path.exists(DB_PATH):
-        return jsonify({'history': ''})
+        return jsonify({'history': '', 'user_query': ''})
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT history FROM chains WHERE id = ?", (chain_id,))
+    cursor.execute("""
+        SELECT history, user_query
+          FROM chains
+         WHERE id = ?
+    """, (chain_id,))
     row = cursor.fetchone()
     conn.close()
 
-    if row and row[0]:
-        return jsonify({'history': row[0]})
-    return jsonify({'history': ''})
+    if row:
+        return jsonify({'history': row[0] or '', 'user_query': row[1] or ''})
+    return jsonify({'history': '', 'user_query': ''})
 
 @app.route('/delete_conversation', methods=['POST'])
 def delete_conversation():
@@ -65,6 +79,12 @@ def delete_conversation():
         return jsonify({'status': 'error', 'message': 'No id provided'})
     if not os.path.exists(DB_PATH):
         return jsonify({'status': 'error', 'message': 'Database not found'})
+
+    # Also remove the folder results/<chain_id> if it exists.
+    results_dir = os.path.join('results', chain_id)
+    if os.path.exists(results_dir) and os.path.isdir(results_dir):
+        import shutil
+        shutil.rmtree(results_dir, ignore_errors=True)
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -128,12 +148,17 @@ def stop_agent():
         return jsonify({"status": "stopped"})
     return jsonify({"status": "no_active_process"})
 
-@app.route('/get_results', methods=['GET'])
-def get_results():
-    """Lists all files in the results/ directory."""
-    if not os.path.exists(RESULTS_DIR):
+@app.route('/get_results/<chain_id>', methods=['GET'])
+def get_results(chain_id):
+    """
+    Lists all files in results/<chain_id>/ directory.
+    If it doesn't exist, return empty list.
+    """
+    results_dir = os.path.join('results', chain_id)
+    if not os.path.exists(results_dir) or not os.path.isdir(results_dir):
         return jsonify([])
-    files = [f for f in os.listdir(RESULTS_DIR) if os.path.isfile(os.path.join(RESULTS_DIR, f))]
+
+    files = [f for f in os.listdir(results_dir) if os.path.isfile(os.path.join(results_dir, f))]
     return jsonify(files)
 
 @app.route('/upload_file', methods=['POST'])
@@ -162,7 +187,7 @@ def latest_conversations():
 def get_plan():
     """
     Returns the plan stored in 'chains.plan' for a given chain_id.
-    If the plan is stored in a Python-esque format, we try ast.literal_eval -> JSON.
+    If the plan is stored in a Pythonic format, we parse with ast.literal_eval -> JSON.
     """
     chain_id = request.args.get('chain_id', '')
     if not chain_id:
@@ -180,30 +205,23 @@ def get_plan():
         # No plan stored
         return jsonify({'plan': None})
 
-    plan_data_raw = row[0]  # This could be JSON or Pythonic string
-
-    # Try to parse:
+    plan_data_raw = row[0]  # Might be JSON or a Python dict string
     plan_dict = None
     if isinstance(plan_data_raw, (str, bytes)):
-        # It's a string that might be JSON or a Python dict string
+        # Attempt JSON first
         try:
-            # First try JSON
             plan_dict = json.loads(plan_data_raw)
         except (json.JSONDecodeError, TypeError):
-            # If not valid JSON, try ast.literal_eval
+            # if that fails, try ast.literal_eval
             try:
                 maybe_py = ast.literal_eval(plan_data_raw)
                 if isinstance(maybe_py, dict):
                     plan_dict = maybe_py
                 else:
-                    # If it's not a dict, fallback
                     plan_dict = None
             except:
                 plan_dict = None
-    else:
-        # It's not even a string?
-        plan_dict = None
-
+    # If not a string at all, just ignore
     return jsonify({'plan': plan_dict})
 
 if __name__ == '__main__':
