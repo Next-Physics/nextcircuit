@@ -27,6 +27,7 @@
     grid-template-rows: 1fr;
     height: 100%;
     max-height: 100%;
+    position: relative; /* so we can place the main bar if needed */
   }
 
   /* LEFT SIDEBAR */
@@ -96,6 +97,7 @@
     padding: 15px;
     overflow: hidden;
     background: #ffffff;
+    position: relative; /* to hold the progress bar */
   }
   .top-bar {
     flex-shrink: 0;
@@ -138,6 +140,34 @@
   }
   .top-bar button.stop-button:hover {
     background: #c0392b;
+  }
+
+  /* Progress bar at bottom of main conversation */
+  #main_progress_bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: #ddd;
+    overflow: hidden;
+    display: none; /* hidden by default */
+  }
+  #main_progress_bar_fill {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: #3498db;
+    animation: slowTravel 5s linear infinite;
+  }
+  @keyframes slowTravel {
+    0%   { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  .conversation-title-text {
+    font-weight: bold;
+    margin-bottom: 10px;
   }
 
   /* FILE ATTACHMENTS */
@@ -200,7 +230,7 @@
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
   }
   .results-box {
-    flex: 1;
+    flex: 0.8; /* slightly smaller now */
     background: #fafafa;
     border: 1px solid #ccc;
     padding: 15px;
@@ -248,36 +278,17 @@
     padding: 10px;
     font-size: 0.9em;
     display: flex;
-    flex-direction: column; /* changed to column to show a progress bar below bold text */
+    flex-direction: column; 
     gap: 5px;
-  }
-  .plan-step .step-icon {
-    font-size: 1.2em;
-    margin-right: 5px;
   }
   .plan-step-header {
     display: flex;
     align-items: center;
-    font-weight: 600; /* bold text */
+    font-weight: 600;
   }
-  .progress-bar {
-    width: 100%;
-    height: 6px;
-    position: relative;
-    overflow: hidden;
-    background: #ddd;
-    border-radius: 4px;
-  }
-  .progress-bar-fill {
-    height: 100%;
-    width: 100%;
-    position: absolute;
-    background: #f1c40f; /* default to yellow for elaborating */
-    animation: progressAnim 1s linear infinite;
-  }
-  @keyframes progressAnim {
-    0%   { left: -100%; }
-    100% { left: 100%; }
+  .plan-step .step-icon {
+    font-size: 1.2em;
+    margin-right: 5px;
   }
   .awaiting-plan {
     font-size: 0.9em;
@@ -378,7 +389,7 @@
 </head>
 <body>
   <div class="container">
-    <!-- LEFT SIDEBAR (PAST CONVERSATIONS) -->
+    <!-- LEFT SIDEBAR -->
     <div class="sidebar">
       <div class="sidebar-top">
         <button onclick="newAgent()">New Agent</button>
@@ -389,7 +400,7 @@
         {% for conv in conversations %}
           <div class="conversation-item" data-chain-id="{{ conv.id }}">
             <div class="conversation-title" onclick="loadConversation('{{ conv.id }}')">
-              {{ conv.title }} | {{ conv.id }}
+              {{ conv.title if conv.title else '' }} | {{ conv.id }}
             </div>
             <div class="delete-conversation" onclick="promptDeleteConversation(event, '{{ conv.id }}')">🗑️</div>
           </div>
@@ -402,6 +413,9 @@
 
     <!-- MIDDLE MAIN AREA -->
     <div class="main">
+      <!-- A bold conversation title displayed once known -->
+      <div id="conversation_title" class="conversation-title-text"></div>
+
       <div class="top-bar">
         <input type="text" id="user_query" placeholder="Enter your query...">
         <input type="text" id="ollama_ip" placeholder="Ollama IP" style="width:120px;">
@@ -425,6 +439,11 @@
           <h4>Results</h4>
           <ul class="results-list" id="results_list"></ul>
         </div>
+      </div>
+
+      <!-- The new slow progress bar at bottom -->
+      <div id="main_progress_bar">
+        <div id="main_progress_bar_fill"></div>
       </div>
     </div>
 
@@ -453,12 +472,13 @@
     let eventSource = null;
     let timerInterval = null;
     let startTime = null;
-    let attachedFiles = []; // {id, path, description}
+    let attachedFiles = [];
     let chainIdToDelete = null;
     let agentRunning = false;
     let initialConversations = [];
     let activeChainId = null;
     let planInterval = null;
+    let titleInterval = null; // we'll poll for chain_title as well
 
     document.addEventListener("DOMContentLoaded", function() {
       const savedIp = localStorage.getItem('ollama_ip');
@@ -477,16 +497,18 @@
     function newAgent() {
       document.getElementById("output_area").textContent = "";
       document.getElementById("user_query").value = "";
-      document.getElementById("user_query").disabled = false; // re-enable for a new query
+      document.getElementById("user_query").disabled = false;
       attachedFiles = [];
       renderAttachedFiles();
       stopAgentIfRunning();
       showStartButton();
       resetTimer();
-      renderPlanSteps([]); // Clear plan
+      renderPlanSteps([]);
       activeChainId = null;
-      // Clear results list
+      // clear results
       document.getElementById("results_list").innerHTML = "";
+      // clear conversation title
+      document.getElementById("conversation_title").textContent = "";
     }
 
     function triggerFileSelect() {
@@ -554,18 +576,17 @@
       if (eventSource) eventSource.close();
       if (agentRunning) return;
 
-      // Once agent starts, disable the query field
       document.getElementById("user_query").disabled = true;
-
-      const ip = document.getElementById("ollama_ip").value;
-      const port = document.getElementById("ollama_port").value;
-      localStorage.setItem('ollama_ip', ip);
-      localStorage.setItem('ollama_port', port);
 
       startTime = Date.now();
       if (timerInterval) clearInterval(timerInterval);
       updateTimer();
       timerInterval = setInterval(updateTimer, 1000);
+
+      const ip = document.getElementById("ollama_ip").value;
+      const port = document.getElementById("ollama_port").value;
+      localStorage.setItem('ollama_ip', ip);
+      localStorage.setItem('ollama_port', port);
 
       const query = document.getElementById("user_query").value;
       document.getElementById("output_area").textContent = "Starting agent...\n";
@@ -573,18 +594,21 @@
       const filesData = attachedFiles.map(f => ({path: f.path, description: f.description || ''}));
       const filesJson = JSON.stringify(filesData);
 
+      // if we already have an activeChainId, pass it; else "None"
+      const chainArg = activeChainId ? activeChainId : "None";
+
       const params = new URLSearchParams({
         user_query: query,
         ollama_ip: ip,
         ollama_port: port,
-        attached_files: filesJson
+        attached_files: filesJson,
+        chain_id: chainArg
       }).toString();
 
       eventSource = new EventSource("/run_agent?" + params, { withCredentials: true });
 
       eventSource.onmessage = (e) => {
         if (e.data === "[DONE]") {
-          // Done
           eventSource.close();
           eventSource = null;
           document.getElementById("output_area").textContent += "\nAgent finished.\n";
@@ -593,6 +617,7 @@
             timerInterval = null;
           }
           showStartButton();
+          hideMainProgressBar();
           agentRunning = false;
         } else {
           document.getElementById("output_area").textContent += e.data + "\n";
@@ -603,10 +628,10 @@
 
       agentRunning = true;
       showStopButton();
+      showMainProgressBar();
 
+      // After a short delay, check for a new chain
       setTimeout(checkForNewConversation, 1000);
-
-      // Show initial placeholder to user if no plan is loaded yet
       renderPlanStepsPlaceholder();
     }
 
@@ -618,16 +643,20 @@
         for (let c of convs) {
           if (!initialConversations.includes(String(c.id)) && !currentIds.includes(String(c.id))) {
             // new conversation found
-            addConversationToSidebar(c.id, c.title);
+            // We'll create a time-labeled "New chat" text
+            const nowStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            // e.g. "New chat 12:30:45"
+            addConversationToSidebar(c.id, `New chat ${nowStr}`, true /* isTemporary */);
             initialConversations.push(String(c.id));
             activeChainId = c.id;
             startPlanPolling();
+            pollChainTitle();
           }
         }
       });
     }
 
-    function addConversationToSidebar(chain_id, title) {
+    function addConversationToSidebar(chain_id, title, isTemporary=false) {
       const container = document.getElementById('conversations_list');
       const div = document.createElement('div');
       div.className = 'conversation-item';
@@ -640,6 +669,7 @@
         loadConversation(chain_id);
         activeChainId = chain_id;
         startPlanPolling();
+        pollChainTitle();
       };
 
       const deleteDiv = document.createElement('div');
@@ -651,6 +681,40 @@
       div.appendChild(deleteDiv);
 
       container.insertBefore(div, container.firstChild);
+    }
+
+    /* Poll for chain title every 2s until found or conversation finished? */
+    function pollChainTitle() {
+      if (!activeChainId) return;
+      if (titleInterval) clearInterval(titleInterval);
+
+      titleInterval = setInterval(() => {
+        fetch(`/get_title?chain_id=${activeChainId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.title && data.title.trim().length > 0) {
+            // We have a real title
+            updateSidebarTitle(activeChainId, data.title);
+            document.getElementById("conversation_title").textContent = data.title;
+
+            clearInterval(titleInterval);
+            titleInterval = null;
+          }
+        })
+        .catch(err => console.error(err));
+      }, 2000);
+    }
+
+    function updateSidebarTitle(chain_id, realTitle) {
+      // find the .conversation-item in the sidebar with data-chain-id=chain_id
+      const item = document.querySelector(`.conversation-item[data-chain-id='${chain_id}']`);
+      if (item) {
+        // update the text
+        const titleDiv = item.querySelector('.conversation-title');
+        if (titleDiv) {
+          titleDiv.textContent = `${realTitle} | ${chain_id}`;
+        }
+      }
     }
 
     function stopAgent() {
@@ -669,6 +733,7 @@
             timerInterval = null;
           }
           showStartButton();
+          hideMainProgressBar();
           agentRunning = false;
         }
       });
@@ -680,11 +745,19 @@
       }
     }
 
+    function showMainProgressBar() {
+      const bar = document.getElementById("main_progress_bar");
+      if (bar) bar.style.display = "block";
+    }
+
+    function hideMainProgressBar() {
+      const bar = document.getElementById("main_progress_bar");
+      if (bar) bar.style.display = "none";
+    }
+
     function showStartButton() {
       document.getElementById("start_agent_btn").style.display = "inline-block";
       document.getElementById("stop_agent_btn").style.display = "none";
-      // re-enable query? Only if you want them to start a brand new agent
-      // document.getElementById("user_query").disabled = false;
     }
 
     function showStopButton() {
@@ -702,7 +775,6 @@
     }
 
     function loadConversation(id) {
-      // Load conversation history + user_query
       fetch("/get_conversation", {
         method: "POST",
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -711,16 +783,14 @@
       .then(response => response.json())
       .then(data => {
         document.getElementById("output_area").textContent = data.history || "No history found.";
-
-        // Show the user_query in the input and disable it
         document.getElementById("user_query").value = data.user_query || "";
         document.getElementById("user_query").disabled = true;
 
-        const output = document.getElementById("output_area");
-        output.scrollTop = output.scrollHeight;
+        // also see if there's a real title
+        pollChainTitle(); // maybe it updates
+        activeChainId = id;
+        startPlanPolling();
       });
-      activeChainId = id;
-      startPlanPolling();
     }
 
     function promptDeleteConversation(event, id) {
@@ -757,6 +827,7 @@
             renderPlanSteps([]);
             activeChainId = null;
             document.getElementById("results_list").innerHTML = "";
+            document.getElementById("conversation_title").textContent = "";
           }
         }
         closeDeleteModal();
@@ -797,17 +868,14 @@
       .then(res => res.json())
       .then(data => {
         if (!data.plan) {
-          // Show "Awaiting plan" if we have no plan yet
           showAwaitingPlan();
           return;
         }
         const plan = data.plan;
-        // If no num_steps, also show "Awaiting plan"
         if (!plan.num_steps) {
           showAwaitingPlan();
           return;
         }
-        // Otherwise, we have a num_steps
         const total = plan.num_steps;
         const stepsDict = plan.steps || {};
         renderPlanSteps({ num_steps: total, steps: stepsDict });
@@ -833,11 +901,9 @@
           const text = step.step_title || step.elaboration || "... (awaiting details)";
           const shortText = shortSummary(text, 50);
 
-          // Create a plan-step container
           const stepDiv = document.createElement('div');
           stepDiv.className = "plan-step";
 
-          // Header row with icon + "Step i) text"
           const headerDiv = document.createElement('div');
           headerDiv.className = "plan-step-header";
 
@@ -850,36 +916,43 @@
 
           headerDiv.appendChild(iconSpan);
           headerDiv.appendChild(titleSpan);
-
           stepDiv.appendChild(headerDiv);
 
-          // If elaborating or in_progress, show a progress bar
+          // If elaborating or in_progress, we can show a progress bar.
           if (status === "elaborating" || status === "in_progress") {
-            const bar = document.createElement('div');
-            bar.className = "progress-bar";
-
-            const fill = document.createElement('div');
-            fill.className = "progress-bar-fill";
-
-            // Yellow for "elaborating", Blue for "in_progress"
-            fill.style.background = (status === "elaborating") ? "#f1c40f" : "#3498db";
-
-            // Also add the bold text inside
-            const label = (status === "elaborating") ? "Elaborating..." : "In progress...";
-            // We can do this as a pseudo-element or simply a row above the bar. 
-            // For simplicity, let's place a bold text in a separate div, then the bar below:
+            // Add a bold line e.g. "Elaborating..." or "In progress..."
             const boldLine = document.createElement('div');
             boldLine.style.fontWeight = 'bold';
-            boldLine.textContent = label;
+            boldLine.textContent = (status === "elaborating") ? "Elaborating..." : "In progress...";
             stepDiv.appendChild(boldLine);
+
+            // A moving progress bar below
+            const bar = document.createElement('div');
+            bar.className = "progress-bar";
+            bar.style.height = "6px";
+            bar.style.background = "#ddd";
+            bar.style.position = "relative";
+            bar.style.borderRadius = "4px";
+            bar.style.overflow = "hidden";
+            bar.style.marginTop = "5px";
+
+            const fill = document.createElement('div');
+            fill.style.position = "absolute";
+            fill.style.top = "0";
+            fill.style.left = "-100%";
+            fill.style.height = "100%";
+            fill.style.width = "100%";
+            fill.style.borderRadius = "4px";
+            fill.style.animation = "slowTravel 4s linear infinite";
+            fill.style.background = (status === "elaborating") ? "#f1c40f" : "#3498db";
 
             bar.appendChild(fill);
             stepDiv.appendChild(bar);
           }
 
           container.appendChild(stepDiv);
+
         } else {
-          // Step placeholder
           const placeholderDiv = document.createElement('div');
           placeholderDiv.className = "plan-step";
 
@@ -906,7 +979,6 @@
       const container = document.getElementById('plan_steps_container');
       container.innerHTML = "";
 
-      // Single placeholder
       const stepDiv = document.createElement('div');
       stepDiv.className = "plan-step";
 
@@ -928,11 +1000,10 @@
     }
 
     function getStepIcon(status) {
-      // existing statuses + new ones
       switch (status) {
         case "pending":      return "🔘";
         case "in_progress":  return "⏳";
-        case "elaborating":  return "⏳"; // same base icon, but separate color
+        case "elaborating":  return "⏳"; 
         case "completed":    return "✅";
         default:             return "🔘";
       }
@@ -968,7 +1039,6 @@
 
     // Poll the chain-specific results folder every 5 seconds
     setInterval(refreshResults, 5000);
-    // initial call if needed
   </script>
 </body>
 </html>

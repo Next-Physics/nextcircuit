@@ -131,7 +131,7 @@ def propose_step_by_step_plan(d):
     - Ensure the plan is relevant and realistic and executable with the given resources.
     - Always write out all your steps in full.
     - Never ever end your output with leftover hidden steps like so **... (36 more steps)**
-    - I repeat, never ever end your output with leftover hidden steps like so **... (36 more steps)**
+    - I repeat, NEVER EVER end the output with leftover hidden steps like so **... (36 more steps) or (15-36 additional steps)**
     """
 
     # Generate plan overview

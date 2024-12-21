@@ -4,6 +4,7 @@ import subprocess
 import signal
 import ast
 import json
+import datetime
 from flask import Flask, render_template, request, jsonify, Response
 
 app = Flask(__name__)
@@ -11,10 +12,6 @@ app = Flask(__name__)
 DB_PATH = 'db/main.db'
 UPLOAD_DIR = 'uploaded_files'
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# We no longer have a global results folder read. Instead, we read from results/<chain_id>/.
-# If you still want a default fallback, you can define it here.
-# e.g. RESULTS_DIR = 'results'
 
 running_process = None
 
@@ -24,8 +21,7 @@ def get_conversations():
         return []
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # We assume there's a column user_query in chains.
-    # We'll also fetch id, chain_title, history, chain_last_modified
+    # We assume there's a user_query and plan columns in the chains table
     cursor.execute("""
         SELECT id, chain_title, history, chain_last_modified, user_query
           FROM chains
@@ -40,7 +36,7 @@ def get_conversations():
             'title': r[1],
             'history': r[2],
             'last_modified': r[3],
-            'user_query': r[4] if len(r) > 4 else ''
+            'user_query': r[4] or ''
         })
     return conversations
 
@@ -73,14 +69,14 @@ def get_conversation():
 
 @app.route('/delete_conversation', methods=['POST'])
 def delete_conversation():
-    """Deletes a conversation from the DB."""
+    """Deletes a conversation from the DB, plus any associated results folder."""
     chain_id = request.form.get('id', '')
     if not chain_id:
         return jsonify({'status': 'error', 'message': 'No id provided'})
     if not os.path.exists(DB_PATH):
         return jsonify({'status': 'error', 'message': 'Database not found'})
 
-    # Also remove the folder results/<chain_id> if it exists.
+    # Remove the folder results/<chain_id> if it exists.
     results_dir = os.path.join('results', chain_id)
     if os.path.exists(results_dir) and os.path.isdir(results_dir):
         import shutil
@@ -101,6 +97,8 @@ def run_agent():
     ollama_ip = request.args.get('ollama_ip', 'localhost')
     ollama_port = request.args.get('ollama_port', '11411')
     attached_files_json = request.args.get('attached_files', '[]')
+    # We'll also pass chain_id or "None"
+    chain_id = request.args.get('chain_id', 'None')
 
     global running_process
 
@@ -114,12 +112,17 @@ def run_agent():
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
     # Use python -u for unbuffered stdout, so prints stream immediately
+    cmd = [
+        'python', '-u', 'main.py',
+        '--query', user_query,
+        '--ip', ollama_ip,
+        '--port', ollama_port,
+        '--attached_files', attached_files_json,
+        '--chain_id', chain_id
+    ]
+
     running_process = subprocess.Popen(
-        ['python', '-u', 'main.py',
-         '--query', user_query,
-         '--ip', ollama_ip,
-         '--port', ollama_port,
-         '--attached_files', attached_files_json],
+        cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -147,6 +150,28 @@ def stop_agent():
         running_process = None
         return jsonify({"status": "stopped"})
     return jsonify({"status": "no_active_process"})
+
+@app.route('/get_title', methods=['GET'])
+def get_title():
+    """
+    Returns chain_title from chains for a given chain_id.
+    If chain_title is NULL or empty, returns empty string.
+    """
+    chain_id = request.args.get('chain_id', '')
+    if not chain_id:
+        return jsonify({'title': ''})
+    if not os.path.exists(DB_PATH):
+        return jsonify({'title': ''})
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT chain_title FROM chains WHERE id = ?", (chain_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if row and row[0]:
+        return jsonify({'title': row[0]})
+    return jsonify({'title': ''})
 
 @app.route('/get_results/<chain_id>', methods=['GET'])
 def get_results(chain_id):
@@ -191,9 +216,9 @@ def get_plan():
     """
     chain_id = request.args.get('chain_id', '')
     if not chain_id:
-        return jsonify({'status': 'error', 'message': 'No chain_id provided'}), 400
+        return jsonify({'plan': None})
     if not os.path.exists(DB_PATH):
-        return jsonify({'status': 'error', 'message': 'Database not found'}), 404
+        return jsonify({'plan': None})
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -205,7 +230,7 @@ def get_plan():
         # No plan stored
         return jsonify({'plan': None})
 
-    plan_data_raw = row[0]  # Might be JSON or a Python dict string
+    plan_data_raw = row[0]
     plan_dict = None
     if isinstance(plan_data_raw, (str, bytes)):
         # Attempt JSON first
@@ -221,7 +246,7 @@ def get_plan():
                     plan_dict = None
             except:
                 plan_dict = None
-    # If not a string at all, just ignore
+    # If not a string, do nothing
     return jsonify({'plan': plan_dict})
 
 if __name__ == '__main__':

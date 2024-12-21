@@ -31,6 +31,7 @@ parser.add_argument('--port', type=int, default=11411, help='Ollama Port')
 parser.add_argument('--ip', type=str, default='localhost', help='Local IP')
 parser.add_argument('--query', type=str, default='llama3.1:8b', help='Model to use')
 parser.add_argument('--attached_files', type=str, default='llama3.1:8b', help='Model to use')
+parser.add_argument('--chain_id', help='Chain ID to resume')
 args = parser.parse_args()
 
 
@@ -39,6 +40,11 @@ def main():
     ############################################################
     ################### SESSION SETTINGS #######################
     ############################################################
+
+
+    if args.chain_id != "None":
+        pass
+
 
     # Dictionary to store data
     d = {}
@@ -52,8 +58,9 @@ def main():
    # d["model"] = 'marco-o1'
   #  d["model"] = 'llama3.1:8b'
 
-    ####
 
+        
+    
     ############################################################
     #################### INITIALIZATION ########################
     ############################################################
