@@ -11,7 +11,6 @@
     height: 100%;
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   }
-
   body {
     display: flex;
     flex-direction: column;
@@ -21,14 +20,16 @@
     overflow: hidden;
   }
 
+  /* 3 columns: left, main, right */
   .container {
     display: grid;
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 280px 1fr 250px;
     grid-template-rows: 1fr;
     height: 100%;
     max-height: 100%;
   }
 
+  /* LEFT SIDEBAR */
   .sidebar {
     background: #2f3640;
     color: #ffffff;
@@ -38,13 +39,11 @@
     overflow-y: auto;
     border-right: 1px solid #444;
   }
-
   .sidebar-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
-
   .sidebar-top button {
     background: #3498db;
     border: none;
@@ -54,17 +53,14 @@
     cursor: pointer;
     font-size:0.9em;
   }
-
   .sidebar-top button:hover {
     background: #2980b9;
   }
-
   .sidebar h3 {
     margin-top: 20px;
     margin-bottom: 20px;
     font-weight: 500;
   }
-
   .conversation-item {
     display: flex;
     align-items: center;
@@ -78,25 +74,22 @@
     line-height: 1.4em;
     word-wrap: break-word;
   }
-
   .conversation-item:hover {
     background: #4b5163;
   }
-
   .conversation-title {
     cursor: pointer;
     flex: 1;
   }
-
   .delete-conversation {
     cursor: pointer;
     margin-left: 10px;
   }
-
   .delete-conversation:hover {
     opacity: 0.8;
   }
 
+  /* MAIN */
   .main {
     display: flex;
     flex-direction: column;
@@ -104,7 +97,6 @@
     overflow: hidden;
     background: #ffffff;
   }
-
   .top-bar {
     flex-shrink: 0;
     display: flex;
@@ -112,19 +104,15 @@
     margin-bottom: 10px;
     gap: 10px;
   }
-
-  /* Make the user query box larger by using flex:2 on it */
   #user_query {
-    flex: 2;
+    flex: 2; /* bigger than the IP/Port fields */
   }
-
   .top-bar input[type="text"] {
     padding: 8px;
     border: 1px solid #ccc;
     border-radius: 6px;
     font-size: 0.95em;
   }
-
   .top-bar button {
     background: #3498db;
     border: none;
@@ -135,11 +123,9 @@
     transition: background 0.2s;
     font-size: 0.95em;
   }
-
   .top-bar button:hover {
     background: #2980b9;
   }
-
   .top-bar .timer {
     font-size: 0.9em;
     color: #555;
@@ -147,7 +133,6 @@
     padding: 0 8px;
     white-space: nowrap;
   }
-
   .top-bar button.stop-button {
     background: #e74c3c;
   }
@@ -155,19 +140,18 @@
     background: #c0392b;
   }
 
+  /* FILE ATTACHMENTS */
   .file-attachments {
     margin-bottom: 10px;
     display: flex;
     flex-direction: column;
     gap: 5px;
   }
-
   .file-attachments-header {
     display: flex;
     align-items: center;
     gap: 10px;
   }
-
   .file-item {
     display: flex;
     align-items: center;
@@ -178,7 +162,6 @@
     padding: 10px;
     font-size: 0.9em;
   }
-
   .file-item input[type="text"] {
     flex: 1;
     border: 1px solid #ccc;
@@ -186,7 +169,6 @@
     padding: 4px;
     font-size: 0.9em;
   }
-
   .file-item .remove-file {
     cursor: pointer;
     background: #e74c3c;
@@ -197,6 +179,7 @@
     font-size: 0.8em;
   }
 
+  /* SPLIT VIEW (OUTPUT + RESULTS) */
   .split-view {
     display: flex;
     flex-direction: column;
@@ -204,7 +187,6 @@
     overflow: hidden;
     gap: 10px;
   }
-
   .output-area {
     flex: 2;
     background: #fafafa;
@@ -217,7 +199,6 @@
     font-size: 0.9em;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
   }
-
   .results-box {
     flex: 1;
     background: #fafafa;
@@ -229,17 +210,14 @@
     font-size: 0.9em;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
   }
-
   .results-box h4 {
     margin-top: 0;
   }
-
   .results-list {
     list-style: none;
     padding: 0;
     margin: 0;
   }
-
   .results-list li {
     padding: 5px 0;
     border-bottom: 1px solid #ddd;
@@ -247,47 +225,85 @@
     word-wrap: break-word;
   }
 
-  .output-area, .results-box, .sidebar {
+  /* RIGHT SIDEBAR: PLAN STEPS */
+  .sidebar-right {
+    background: #f3f3f3;
+    border-left: 1px solid #ddd;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .sidebar-right h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-weight: 500;
+    color: #444;
+  }
+  .plan-step {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    padding: 10px;
+    font-size: 0.9em;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .plan-step .step-icon {
+    font-size: 1.2em;
+  }
+  .plan-step .step-text {
+    flex: 1;
+    overflow-wrap: break-word;
+  }
+
+  /* SCROLLBARS */
+  .output-area, .results-box, .sidebar, .sidebar-right {
     scrollbar-width: thin;
     scrollbar-color: #ccc #f0f0f0;
   }
-
   .output-area::-webkit-scrollbar,
   .results-box::-webkit-scrollbar,
-  .sidebar::-webkit-scrollbar {
+  .sidebar::-webkit-scrollbar,
+  .sidebar-right::-webkit-scrollbar {
     width: 8px;
   }
-
   .output-area::-webkit-scrollbar-thumb,
   .results-box::-webkit-scrollbar-thumb,
-  .sidebar::-webkit-scrollbar-thumb {
+  .sidebar::-webkit-scrollbar-thumb,
+  .sidebar-right::-webkit-scrollbar-thumb {
     background: #ccc;
     border-radius: 4px;
   }
-
   .output-area::-webkit-scrollbar-track,
   .results-box::-webkit-scrollbar-track,
-  .sidebar::-webkit-scrollbar-track {
+  .sidebar::-webkit-scrollbar-track,
+  .sidebar-right::-webkit-scrollbar-track {
     background: #f0f0f0;
   }
 
-  @media (max-width: 768px) {
+  /* RESPONSIVE */
+  @media (max-width: 992px) {
+    /* Possibly hide or stack the right sidebar */
     .container {
-      grid-template-columns: 1fr;
+      grid-template-columns: 280px 1fr;
+      grid-template-rows: auto auto;
     }
-    .sidebar {
+    .sidebar-right {
+      grid-column: 1 / span 2;
+      grid-row: 2;
       flex-direction: row;
       flex-wrap: wrap;
       overflow-x: auto;
-      height: auto;
-    }
-    .conversation-item {
-      margin-right: 10px;
-      margin-bottom: 10px;
+      padding: 10px;
+      border-top: 1px solid #ddd;
+      border-left: none;
     }
   }
 
-  /* Modal styles */
+  /* MODAL (DELETE CONFIRM) */
   .modal-overlay {
     position: fixed;
     top:0; left:0;
@@ -298,11 +314,9 @@
     justify-content: center;
     z-index: 9999;
   }
-
   .modal-overlay.active {
     display: flex;
   }
-
   .modal-box {
     background: #fff;
     padding: 20px;
@@ -311,17 +325,14 @@
     box-shadow: 0 2px 10px rgba(0,0,0,0.3);
     text-align: center;
   }
-
   .modal-box h4 {
     margin-top:0;
   }
-
   .modal-actions {
     margin-top:20px;
     display:flex;
     justify-content: space-around;
   }
-
   .modal-actions button {
     padding: 8px 12px;
     border-radius: 4px;
@@ -329,12 +340,10 @@
     cursor:pointer;
     font-size:0.9em;
   }
-
   .modal-actions .cancel-btn {
     background: #ccc;
     color: #333;
   }
-
   .modal-actions .delete-btn {
     background:#e74c3c;
     color:#fff;
@@ -344,6 +353,7 @@
 </head>
 <body>
   <div class="container">
+    <!-- LEFT SIDEBAR -->
     <div class="sidebar">
       <div class="sidebar-top">
         <button onclick="newAgent()">New Agent</button>
@@ -364,6 +374,8 @@
       {% endif %}
       </div>
     </div>
+
+    <!-- MIDDLE MAIN AREA -->
     <div class="main">
       <div class="top-bar">
         <input type="text" id="user_query" placeholder="Enter your query...">
@@ -390,9 +402,17 @@
         </div>
       </div>
     </div>
+
+    <!-- RIGHT SIDEBAR (PLAN STEPS) -->
+    <div class="sidebar-right">
+      <h3>Plan Steps</h3>
+      <div id="plan_steps_container">
+        <!-- Steps are dynamically rendered here -->
+      </div>
+    </div>
   </div>
 
-  <!-- Custom Modal for Delete Confirmation -->
+  <!-- MODAL FOR DELETE CONFIRMATION -->
   <div class="modal-overlay" id="delete_modal">
     <div class="modal-box">
       <h4>Delete Conversation?</h4>
@@ -408,10 +428,12 @@
     let eventSource = null;
     let timerInterval = null;
     let startTime = null;
-    let attachedFiles = []; // Will store {id, path, description}
-    let chainIdToDelete = null; // Store id temporarily for modal confirmation
+    let attachedFiles = []; // {id, path, description}
+    let chainIdToDelete = null;
     let agentRunning = false;
-    let initialConversations = []; // Keep track to detect new chain
+    let initialConversations = [];
+    let activeChainId = null;
+    let planInterval = null; // for polling plan steps
 
     document.addEventListener("DOMContentLoaded", function() {
       const savedIp = localStorage.getItem('ollama_ip');
@@ -419,7 +441,6 @@
       if (savedIp) document.getElementById('ollama_ip').value = savedIp;
       if (savedPort) document.getElementById('ollama_port').value = savedPort;
 
-      // Store initial conv IDs to detect new ones after start
       initialConversations = getCurrentConversationIds();
     });
 
@@ -429,7 +450,7 @@
     }
 
     function newAgent() {
-      // Reset everything for a new conversation
+      // Reset everything
       document.getElementById("output_area").textContent = "";
       document.getElementById("user_query").value = "";
       attachedFiles = [];
@@ -437,13 +458,15 @@
       stopAgentIfRunning();
       showStartButton();
       resetTimer();
+      // Clear plan UI
+      renderPlanSteps([]);
+      activeChainId = null;
     }
 
     function triggerFileSelect() {
       document.getElementById('file_input').click();
     }
 
-    // Upload the selected file to server and store its absolute path
     function uploadSelectedFile(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -477,7 +500,7 @@
         div.className = 'file-item';
 
         const fileNameSpan = document.createElement('span');
-        fileNameSpan.textContent = fileObj.path; // show the server path
+        fileNameSpan.textContent = fileObj.path;
 
         const descInput = document.createElement('input');
         descInput.type = 'text';
@@ -503,7 +526,7 @@
 
     function startAgent() {
       if (eventSource) eventSource.close();
-      if (agentRunning) return; // Already running
+      if (agentRunning) return;
 
       const ip = document.getElementById("ollama_ip").value;
       const port = document.getElementById("ollama_port").value;
@@ -516,7 +539,6 @@
       timerInterval = setInterval(updateTimer, 1000);
 
       const query = document.getElementById("user_query").value;
-
       document.getElementById("output_area").textContent = "Starting agent...\n";
 
       const filesData = attachedFiles.map(f => ({path: f.path, description: f.description || ''}));
@@ -531,9 +553,9 @@
 
       eventSource = new EventSource("/run_agent?" + params, { withCredentials: true });
 
-      eventSource.onmessage = function(e) {
+      eventSource.onmessage = (e) => {
         if (e.data === "[DONE]") {
-          // Agent finished
+          // Done
           eventSource.close();
           eventSource = null;
           document.getElementById("output_area").textContent += "\nAgent finished.\n";
@@ -544,7 +566,6 @@
           showStartButton();
           agentRunning = false;
         } else {
-          // Append new output line
           document.getElementById("output_area").textContent += e.data + "\n";
           const output = document.getElementById("output_area");
           output.scrollTop = output.scrollHeight;
@@ -553,23 +574,25 @@
 
       agentRunning = true;
       showStopButton();
+      // Check for new conversation after a short delay
+      setTimeout(checkForNewConversation, 1000);
 
-      // After a short delay, check if a new chain was added
-      setTimeout(checkForNewConversation, 10000);
+      // Show a placeholder step in plan
+      renderPlanStepsPlaceholder();
     }
 
-    
     function checkForNewConversation() {
       fetch('/latest_conversations')
       .then(res => res.json())
       .then(convs => {
         const currentIds = getCurrentConversationIds();
-        // Find any conversation in convs that's not in currentIds or initialConversations
         for (let c of convs) {
           if (!initialConversations.includes(String(c.id)) && !currentIds.includes(String(c.id))) {
-            // New conversation found
+            // new conversation found
             addConversationToSidebar(c.id, c.title);
             initialConversations.push(String(c.id));
+            activeChainId = c.id; // assume this is the newly created chain
+            startPlanPolling();
           }
         }
       });
@@ -584,7 +607,11 @@
       const titleDiv = document.createElement('div');
       titleDiv.className = 'conversation-title';
       titleDiv.textContent = `${title} | ${chain_id}`;
-      titleDiv.onclick = () => loadConversation(chain_id);
+      titleDiv.onclick = () => {
+        loadConversation(chain_id);
+        activeChainId = chain_id;
+        startPlanPolling();
+      };
 
       const deleteDiv = document.createElement('div');
       deleteDiv.className = 'delete-conversation';
@@ -594,15 +621,12 @@
       div.appendChild(titleDiv);
       div.appendChild(deleteDiv);
 
-      // Prepend the new conversation at the top
       container.insertBefore(div, container.firstChild);
     }
 
     function stopAgent() {
-      if (!agentRunning) return; 
-      fetch("/stop_agent", {
-        method: "POST"
-      })
+      if (!agentRunning) return;
+      fetch("/stop_agent", { method: "POST" })
       .then(res => res.json())
       .then(data => {
         if (data.status === "stopped") {
@@ -647,6 +671,7 @@
     }
 
     function loadConversation(id) {
+      // Load conversation history
       fetch("/get_conversation", {
         method: "POST",
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -658,6 +683,8 @@
         const output = document.getElementById("output_area");
         output.scrollTop = output.scrollHeight;
       });
+      activeChainId = id;
+      startPlanPolling();
     }
 
     function promptDeleteConversation(event, id) {
@@ -690,6 +717,10 @@
           const item = document.querySelector(`.conversation-item[data-chain-id='${chainIdToDelete}']`);
           if (item) item.remove();
           initialConversations = initialConversations.filter(cid => cid !== String(chainIdToDelete));
+          if (activeChainId === chainIdToDelete) {
+            renderPlanSteps([]);
+            activeChainId = null;
+          }
         }
         closeDeleteModal();
       })
@@ -711,6 +742,116 @@
 
       document.getElementById("timer_value").textContent = `${hh}:${mm}:${ss}`;
     }
+
+    /* ---------- PLAN STEPS SIDEBAR LOGIC ---------- */
+    function startPlanPolling() {
+      if (planInterval) clearInterval(planInterval);
+      if (activeChainId) {
+        planInterval = setInterval(fetchPlanSteps, 3000);
+        fetchPlanSteps();
+      }
+    }
+
+    function fetchPlanSteps() {
+      if (!activeChainId) return;
+      fetch(`/get_plan?chain_id=${activeChainId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.plan) {
+          // No plan yet - do nothing or keep placeholders
+          return;
+        }
+        const plan = data.plan;
+        if (!plan.steps) return; // plan might have "num_steps" but no steps array yet
+        renderPlanSteps(plan.steps);
+      })
+      .catch(err => console.error(err));
+    }
+
+    function renderPlanSteps(steps) {
+      // steps is presumably an object with integer keys
+      // or maybe a list; adapt as needed
+      const container = document.getElementById('plan_steps_container');
+      container.innerHTML = "";
+
+      // If "steps" is a dict with integer keys, convert to a sorted array
+      let stepArray = [];
+      if (!Array.isArray(steps)) {
+        // assume an object with integer keys
+        Object.keys(steps)
+          .sort((a,b)=> parseInt(a) - parseInt(b))
+          .forEach(k => {
+            stepArray.push(steps[k]);
+          });
+      } else {
+        // "steps" is already an array
+        stepArray = steps;
+      }
+
+      stepArray.forEach((step, index) => {
+        const icon = getStepIcon(step.status || "pending");
+        const shortText = shortSummary(step.step_title || step.elaboration || "", 50);
+
+        const stepDiv = document.createElement('div');
+        stepDiv.className = "plan-step";
+
+        const iconSpan = document.createElement('span');
+        iconSpan.className = "step-icon";
+        iconSpan.textContent = icon;
+
+        const textDiv = document.createElement('div');
+        textDiv.className = "step-text";
+
+        // "Step i) Title"
+        // If we use index from stepArray, it might be offset from the original numbering,
+        // or we can show step number from the dict key, your call:
+        const stepNumber = index + 1;
+        let displayText = `Step ${stepNumber}) ${shortText}`;
+
+        textDiv.textContent = displayText;
+
+        stepDiv.appendChild(iconSpan);
+        stepDiv.appendChild(textDiv);
+        container.appendChild(stepDiv);
+      });
+    }
+
+    function renderPlanStepsPlaceholder() {
+      const container = document.getElementById('plan_steps_container');
+      container.innerHTML = "";
+
+      const stepDiv = document.createElement('div');
+      stepDiv.className = "plan-step";
+
+      const iconSpan = document.createElement('span');
+      iconSpan.className = "step-icon";
+      iconSpan.textContent = "🔘";
+
+      const textDiv = document.createElement('div');
+      textDiv.className = "step-text";
+      textDiv.textContent = "Step 1) ... (awaiting plan)";
+
+      stepDiv.appendChild(iconSpan);
+      stepDiv.appendChild(textDiv);
+
+      container.appendChild(stepDiv);
+    }
+
+    function getStepIcon(status) {
+      switch (status) {
+        case "pending":      return "🔘";
+        case "in_progress":  return "⏳";
+        case "completed":    return "✅";
+        default:             return "🔘";
+      }
+    }
+
+    function shortSummary(txt, maxLen) {
+      if (!txt) return "";
+      if (txt.length <= maxLen) return txt;
+      return txt.substring(0, maxLen-3) + "...";
+    }
+    /* ---------- END PLAN STEPS SIDEBAR ---------- */
 
     function refreshResults() {
       fetch("/get_results")

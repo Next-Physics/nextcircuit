@@ -70,7 +70,8 @@ def main():
     # Overwrite print function to also log to database
     builtins.print = create_print_with_logging(d["id"])
 
-    print(d)
+    #print(d)
+
 
     print("PROMPT: ", d["prompt"])
     print("")
@@ -85,7 +86,6 @@ def main():
     # Category content
     categorize_content(d)
 
-    print("The category is", d["category"])
     # Generate chain title
     generate_chain_title(d)
 

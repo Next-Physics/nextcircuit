@@ -62,6 +62,7 @@ User’s original query:
 
 def extract_number_of_steps(d):
 
+    print("\nTotal number of steps in the plan:")
     d["exe_prompt"] = f"""
     Look closely at the following text:
 
@@ -192,15 +193,31 @@ def elaborate_on_steps(d):
 
         step_elaboration = query_ollama(d)
 
+
+        d["exe_prompt"] = f""" You are an expert at text extract. Please extract the title of step {i} of the following plan:
+
+        '{d['plan']['overview']}'
+
+        You should remove the ** Chareters along with the step number and return the TITLE of the step.
+
+        What is the extracted step title of step {i}? Return only the extracted step title text only.
+
+        """
+        print("\n")
+        print("ELABORATION SUMMERY:")
+        step_title = query_ollama(d)
+        print("\n")
+
+
         # Initialize 'steps' if it doesn't exist
         if "steps" not in d["plan"]:
-            d["plan"]["steps"] = []
+            d["plan"]["steps"] = {}
 
-        d["plan"]["steps"].append({
-            "num": i,
-            "content": step_elaboration,
+        d["plan"]["steps"][i] = {
+            "elaboration": step_elaboration,
+            "step_title": step_title,
             "status": "pending"
-        })
+            }
 
         # Write to database
         update_chains_db(d["id"], "plan", d["plan"])
@@ -209,3 +226,5 @@ def elaborate_on_steps(d):
 
     print("Success!\n")
 
+
+{'prompt': 'Book a commercial flight or charter a private jet to Tokyo, Japan (approximately 12 hours) and spend one day researching lunar missions, space agencies, and private companies offering moon travel services. Then, research and book a sub-orbital spaceflight experience with Virgin Galactic, Blue Origin, SpaceX, or any other company that offers such a service. If no commercial option is available within the timeframe, prepare for an extended trip by booking a cargo ship or a scientific expedition vessel traveling to the International Space Station (ISS) as a passenger, and then arrange transportation from the ISS to the moon via a lunar module or spacecraft available on the space station.', 'attached_files': '[]', 'model': 'mannix/llama3.1-8b-abliterated', 'results_dir': 'C:\\Users\\mvlor\\Documents\\nextcircuit\\results', 'id': 53, 'port': 11434, 'local_ip': '192.168.1.11', 'exe_prompt': "\n    Look closely at the following text:\n\n    '**Overview**\n\nTo achieve the goal of booking a commercial flight or chartering a private jet to Tokyo, Japan, and then conducting research on lunar missions and space travel, followed by booking a sub-orbital spaceflight experience, I will provide a comprehensive plan that utilizes available resources to execute each step.'\n\n    What is the number of the absolut last step in this plan? Please return the highest (last) step-number only. Think twice and deeply before you answer. Answer just with the number only: \n    ", 'category': 'Space', 'title': '"Moon Landing in a Month"', 'detected_os': {'system_name': 'Windows', 'node_name': 'mvlorenz', 'release': '11', 'version': '10.0.22631', 'platform_info': 'Windows-11-10.0.22631-SP0', 'processor': 'Intel64 Family 6 Model 154 Stepping 3, GenuineIntel', 'machine': 'AMD64'}, 'detected_hardware': {'logical_cpus': 20, 'physical_cpus': 14, 'cpu_frequency_mhz': 2300.0, 'cpu_usage_percent': 0.9, 'total_memory_gb': 15.627998352050781, 'available_memory_gb': 2.2458953857421875, 'disk_partitions': [{'device': 'C:\\', 'mountpoint': 'C:\\', 'fstype': 'NTFS', 'opts': 'rw,fixed', 'usage': {'total': 510549889024, 'used': 206150938624, 'free': 304398950400, 'percent': 40.4}}]}, 'internet_connection': True, 'plan': {'overview': '**Overview**\n\nTo achieve the goal of booking a commercial flight or chartering a private jet to Tokyo, Japan, and then conducting research on lunar missions and space travel, followed by booking a sub-orbital spaceflight experience, I will provide a comprehensive plan that utilizes available resources to execute each step.', 'num_steps': 3}}
