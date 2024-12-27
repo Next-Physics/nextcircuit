@@ -105,11 +105,13 @@
     align-items: center;
     margin-bottom: 10px;
     gap: 10px;
+    flex-wrap: wrap;
   }
   #user_query {
-    flex: 2; /* bigger than IP/Port */
+    flex: 2; /* bigger than IP/Port or API Key/Model */
+    min-width: 200px;
   }
-  .top-bar input[type="text"] {
+  .top-bar input[type="text"], .top-bar select {
     padding: 8px;
     border: 1px solid #ccc;
     border-radius: 6px;
@@ -140,6 +142,11 @@
   }
   .top-bar button.stop-button:hover {
     background: #c0392b;
+  }
+
+  /* Slight margin for port input under Ollama mode */
+  #ollama_port {
+    margin-left: 5px;
   }
 
   /* Progress bar at bottom of main conversation */
@@ -173,7 +180,7 @@
   /* FILE ATTACHMENTS */
   .file-attachments {
     margin-bottom: 10px;
-    display: flex;
+    display: flex; /* was previously 'display:none;' => now visible */
     flex-direction: column;
     gap: 5px;
   }
@@ -324,12 +331,12 @@
   /* RESPONSIVE */
   @media (max-width: 992px) {
     .container {
-      grid-template-columns: 280px 1fr;
-      grid-template-rows: auto auto;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto;
     }
     .sidebar-right {
-      grid-column: 1 / span 2;
-      grid-row: 2;
+      grid-column: 1 / span 1;
+      grid-row: 3;
       flex-direction: row;
       flex-wrap: wrap;
       overflow-x: auto;
@@ -385,6 +392,10 @@
     color:#fff;
   }
 
+  @keyframes slowTravel {
+    0%   { left: -100%; }
+    100% { left: 100%; }
+  }
 </style>
 </head>
 <body>
@@ -417,14 +428,48 @@
       <div id="conversation_title" class="conversation-title-text"></div>
 
       <div class="top-bar">
+        <!-- Mode Selection -->
+        <select id="mode_select" onchange="toggleModeFields()">
+          <option value="ollama">Ollama</option>
+          <option value="chatgpt">ChatGPT</option>
+        </select>
+
+        <!-- Ollama Fields -->
+        <div id="ollama_fields" style="display:flex;">
+          <input type="text" id="ollama_ip" placeholder="Ollama IP" style="width:120px;">
+          <input type="text" id="ollama_port" placeholder="Port" style="width:80px; margin-left:5px;">
+          <select id="ollama_model">
+            <option value="mannix/llama3.1-8b-abliterated">mannix/llama3.1-8b-abliterated</option>
+            <option value="llama3.1:8b">llama3.1:8b</option>
+            <option value="llama3.2">llama3.2</option>
+            <option value="llama3.2:1b">llama3.2:1b</option>
+            <!-- Add more Ollama models as needed -->
+          </select>
+        </div>
+
+        <!-- ChatGPT Fields -->
+        <div id="chatgpt_fields" style="display:none;">
+          <input type="text" id="chatgpt_api_key" placeholder="API Key" style="width:200px;">
+          <select id="chatgpt_model">
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            <option value="gpt-4">GPT-4</option>
+            <option value="gpt-4-0314">GPT-4 (Mar 14)</option>
+            <option value="gpt-4-32k">GPT-4 (32k)</option>
+          </select>
+        </div>
+
+        <!-- User Query -->
         <input type="text" id="user_query" placeholder="Enter your query...">
-        <input type="text" id="ollama_ip" placeholder="Ollama IP" style="width:120px;">
-        <input type="text" id="ollama_port" placeholder="Port" style="width:80px;">
+
+        <!-- Start/Stop Buttons -->
         <button id="start_agent_btn" onclick="startAgent()">Start Agent</button>
         <button id="stop_agent_btn" class="stop-button" onclick="stopAgent()" style="display:none;">Stop Agent</button>
+
+        <!-- Timer -->
         <div class="timer">Time running: <span id="timer_value">00:00:00</span></div>
       </div>
 
+      <!-- File Attachments (VISIBLE NOW) -->
       <div class="file-attachments">
         <div class="file-attachments-header">
           <button onclick="triggerFileSelect()">Add File</button>
@@ -483,8 +528,16 @@
     document.addEventListener("DOMContentLoaded", function() {
       const savedIp = localStorage.getItem('ollama_ip');
       const savedPort = localStorage.getItem('ollama_port');
+      const savedApiKey = localStorage.getItem('chatgpt_api_key');
+      const savedModel = localStorage.getItem('chatgpt_model');
+      const savedOllamaModel = localStorage.getItem('ollama_model');
+
       if (savedIp) document.getElementById('ollama_ip').value = savedIp;
       if (savedPort) document.getElementById('ollama_port').value = savedPort;
+      if (savedOllamaModel) document.getElementById('ollama_model').value = savedOllamaModel;
+
+      if (savedApiKey) document.getElementById('chatgpt_api_key').value = savedApiKey;
+      if (savedModel) document.getElementById('chatgpt_model').value = savedModel;
 
       initialConversations = getCurrentConversationIds();
     });
@@ -497,7 +550,7 @@
     function newAgent() {
       document.getElementById("output_area").textContent = "";
       document.getElementById("user_query").value = "";
-      document.getElementById("user_query").disabled = false;
+      document.getElementById("user_query").disabled = false; // re-enable for new conversation
       attachedFiles = [];
       renderAttachedFiles();
       stopAgentIfRunning();
@@ -509,6 +562,17 @@
       document.getElementById("results_list").innerHTML = "";
       // clear conversation title
       document.getElementById("conversation_title").textContent = "";
+    }
+
+    function toggleModeFields() {
+      const mode = document.getElementById('mode_select').value;
+      if (mode === 'ollama') {
+        document.getElementById('ollama_fields').style.display = 'flex';
+        document.getElementById('chatgpt_fields').style.display = 'none';
+      } else if (mode === 'chatgpt') {
+        document.getElementById('ollama_fields').style.display = 'none';
+        document.getElementById('chatgpt_fields').style.display = 'flex';
+      }
     }
 
     function triggerFileSelect() {
@@ -530,7 +594,14 @@
       .then(data => {
         if (data.status === 'ok') {
           const fileId = 'file_' + Date.now();
-          attachedFiles.push({id: fileId, path: data.path, description: ''});
+          // full path is data.path, but only display name in front-end
+          const displayName = data.path.split(/[\\/]/).pop(); 
+          attachedFiles.push({
+            id: fileId,
+            path: data.path,         // full path (for main.py)
+            displayName: displayName, // short name for UI
+            description: ''
+          });
           renderAttachedFiles();
         }
       })
@@ -548,7 +619,8 @@
         div.className = 'file-item';
 
         const fileNameSpan = document.createElement('span');
-        fileNameSpan.textContent = fileObj.path;
+        // Show only the short display name
+        fileNameSpan.textContent = fileObj.displayName;
 
         const descInput = document.createElement('input');
         descInput.type = 'text';
@@ -576,6 +648,7 @@
       if (eventSource) eventSource.close();
       if (agentRunning) return;
 
+      // Freeze the query as soon as we start the agent
       document.getElementById("user_query").disabled = true;
 
       startTime = Date.now();
@@ -583,24 +656,51 @@
       updateTimer();
       timerInterval = setInterval(updateTimer, 1000);
 
-      const ip = document.getElementById("ollama_ip").value;
-      const port = document.getElementById("ollama_port").value;
-      localStorage.setItem('ollama_ip', ip);
-      localStorage.setItem('ollama_port', port);
+      const mode = document.getElementById('mode_select').value;
+
+      // Collect parameters based on mode
+      let modeParams = {};
+      if (mode === 'ollama') {
+        const ip = document.getElementById("ollama_ip").value;
+        const port = document.getElementById("ollama_port").value;
+        const model = document.getElementById("ollama_model").value;
+        localStorage.setItem('ollama_ip', ip);
+        localStorage.setItem('ollama_port', port);
+        localStorage.setItem('ollama_model', model);
+        modeParams = {
+          ollama_ip: ip,
+          ollama_port: port,
+          ollama_model: model
+        };
+      } else if (mode === 'chatgpt') {
+        const apiKey = document.getElementById("chatgpt_api_key").value;
+        const model = document.getElementById("chatgpt_model").value;
+        localStorage.setItem('chatgpt_api_key', apiKey);
+        localStorage.setItem('chatgpt_model', model);
+        modeParams = {
+          chatgpt_api_key: apiKey,
+          chatgpt_model: model
+        };
+      }
 
       const query = document.getElementById("user_query").value;
       document.getElementById("output_area").textContent = "Starting agent...\n";
 
-      const filesData = attachedFiles.map(f => ({path: f.path, description: f.description || ''}));
+      // Collect file data (full path + description) to pass to main.py
+      const filesData = attachedFiles.map(f => ({
+        path: f.path,
+        description: f.description || ''
+      }));
       const filesJson = JSON.stringify(filesData);
 
       // if we already have an activeChainId, pass it; else "None"
       const chainArg = activeChainId ? activeChainId : "None";
 
+      // Merge all parameters
       const params = new URLSearchParams({
         user_query: query,
-        ollama_ip: ip,
-        ollama_port: port,
+        mode: mode,
+        ...modeParams,
         attached_files: filesJson,
         chain_id: chainArg
       }).toString();
@@ -645,7 +745,7 @@
             // new conversation found
             // We'll create a time-labeled "New chat" text
             const nowStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            // e.g. "New chat 12:30:45"
+            // e.g. "New chat 12:30"
             addConversationToSidebar(c.id, `New chat ${nowStr}`, true /* isTemporary */);
             initialConversations.push(String(c.id));
             activeChainId = c.id;
@@ -683,7 +783,7 @@
       container.insertBefore(div, container.firstChild);
     }
 
-    /* Poll for chain title every 2s until found or conversation finished? */
+    /* Poll for chain title every 2s until found or conversation finished */
     function pollChainTitle() {
       if (!activeChainId) return;
       if (titleInterval) clearInterval(titleInterval);

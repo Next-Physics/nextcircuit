@@ -29,8 +29,10 @@ from funcs.misc import create_print_with_logging
 parser = argparse.ArgumentParser(description='Ollama Agent')
 parser.add_argument('--port', type=int, default=11411, help='Ollama Port')
 parser.add_argument('--ip', type=str, default='localhost', help='Local IP')
-parser.add_argument('--query', type=str, default='llama3.1:8b', help='Model to use')
-parser.add_argument('--attached_files', type=str, default='llama3.1:8b', help='Model to use')
+parser.add_argument('--api_key', type=str, default=None, help='Relevant API Key')
+parser.add_argument('--model', type=str, default=None, help='Model to use')
+parser.add_argument('--query', type=str, default='', help='Users query')
+parser.add_argument('--attached_files', type=str, default=None, help='Attached files')
 parser.add_argument('--chain_id', help='Chain ID to resume')
 args = parser.parse_args()
 
@@ -45,22 +47,23 @@ def main():
     if args.chain_id != "None":
         pass
 
-
-    # Dictionary to store data
-    d = {}
-
     # Set user query
     #d["prompt"] = "Help me cure my brain cancer using oncolytic virus quickly!. From design to bioreactor production."
+
+     # Dictionary to store data
+    d = {}
+
+    # Extract the arguments
     d["prompt"] = args.query
     d["attached_files"] = args.attached_files
-    # Set model to use
-    d["model"] = 'mannix/llama3.1-8b-abliterated'
-   # d["model"] = 'marco-o1'
-  #  d["model"] = 'llama3.1:8b'
-
-
-        
+    d["model"] = args.model
+    d["port"] = args.port
+    d["local_ip"] = args.ip
+    d["api_key"] = args.api_key
+    d["chain_id"] = args.chain_id
     
+
+    print(d)
     ############################################################
     #################### INITIALIZATION ########################
     ############################################################
@@ -88,11 +91,7 @@ def main():
     print("PROMPT: ", d["prompt"])
     print("")
 
-    # Get Ollama port from arg parse
-    d["port"] = args.port
 
-    # Get local IP
-    d["local_ip"] = args.ip
 
 
     # # Category content

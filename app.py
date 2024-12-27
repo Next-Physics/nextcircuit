@@ -4,7 +4,6 @@ import subprocess
 import signal
 import ast
 import json
-import datetime
 from flask import Flask, render_template, request, jsonify, Response
 
 app = Flask(__name__)
@@ -94,10 +93,12 @@ def delete_conversation():
 def run_agent():
     """Starts main.py as a subprocess and streams stdout via SSE."""
     user_query = request.args.get('user_query', '')
+    mode = request.args.get('mode', 'ollama')  # Default to Ollama
     ollama_ip = request.args.get('ollama_ip', 'localhost')
     ollama_port = request.args.get('ollama_port', '11411')
+    chatgpt_api_key = request.args.get('chatgpt_api_key', '')
+    chatgpt_model = request.args.get('chatgpt_model', 'gpt-3.5-turbo')
     attached_files_json = request.args.get('attached_files', '[]')
-    # We'll also pass chain_id or "None"
     chain_id = request.args.get('chain_id', 'None')
 
     global running_process
@@ -111,15 +112,20 @@ def run_agent():
         import subprocess
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
-    # Use python -u for unbuffered stdout, so prints stream immediately
+    # Build the command based on the selected mode
     cmd = [
         'python', '-u', 'main.py',
         '--query', user_query,
-        '--ip', ollama_ip,
-        '--port', ollama_port,
+        '--mode', mode,
         '--attached_files', attached_files_json,
         '--chain_id', chain_id
     ]
+
+    if mode.lower() == 'ollama':
+        model = request.args.get('ollama_model', 'default-ollama-model')
+        cmd.extend(['--ip', ollama_ip, '--port', ollama_port, '--model', model])
+    elif mode.lower() == 'chatgpt':
+        cmd.extend(['--api_key', chatgpt_api_key, '--model', chatgpt_model])
 
     running_process = subprocess.Popen(
         cmd,
