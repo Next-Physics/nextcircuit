@@ -58,7 +58,7 @@ def main():
     d["attached_files"] = args.attached_files
     d["model"] = args.model
     d["port"] = args.port
-    d["local_ip"] = args.ip
+    d["ip"] = args.ip
     d["api_key"] = args.api_key
     d["chain_id"] = args.chain_id
     
