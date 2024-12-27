@@ -1,5 +1,5 @@
 import re
-from funcs.query_ollama import query_ollama
+from funcs.query_llm import query_llm
 
 def extract_code_blocks(content):
 
@@ -44,7 +44,7 @@ def execute_plan(d):
 
         print("____________________________________________________________________")
 
-        # step["status"] = query_ollama(d)
+        # step["status"] = query_llm(d)
         # print("Step Status: ", step["status"])
         # print("")
 

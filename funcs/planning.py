@@ -1,5 +1,5 @@
 import sqlite3
-from funcs.query_ollama import query_ollama
+from funcs.query_llm import query_llm
 from funcs.db_funcs import update_chains_db
 
 ### Given the users prompt, please return a list of selected keywords that are relevant to the prompt
@@ -33,7 +33,7 @@ def categorize_content(d):
 
     """
 
-    d["category"] = query_ollama(d)
+    d["category"] = query_llm(d)
 
 def create_elaboration_prompt(d):
     print("Elaborating / extending user query...")
@@ -55,7 +55,7 @@ Please respond only with the fully elaborated query. Do not include these instru
 User’s original query:
 "{d['prompt']}"
 """
-    d['prompt'] = query_ollama(d)
+    d['prompt'] = query_llm(d)
     return d
 
 
@@ -71,7 +71,7 @@ def extract_number_of_steps(d):
     What is the number of the absolut last step in this plan? Please return the highest (last) step-number only. Think twice and deeply before you answer. Answer just with the number only: 
     """
 
-    return query_ollama(d)
+    return query_llm(d)
 
 
 def propose_step_by_step_plan(d):
@@ -99,8 +99,8 @@ def propose_step_by_step_plan(d):
 
     Capabilities:
     - You can write and execute code (e.g., Python, Bash scripts)
-    - You can always extend your knowlegde by talking with an LLM in python by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_ollama(d)" (assume this function is always available)
-    - Example of using the LLM python function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_ollama(d)"
+    - You can always extend your knowlegde by talking with an LLM in python by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_llm(d)" (assume this function is always available)
+    - Example of using the LLM python function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_llm(d)"
     - You maybe attempt to interact with hardware peripherals (e.g., webcam, microphone, alexa etc.)
     - You are encouraged to perform web searches and interact with websites
     - You cannot directly change the physical world, but you trigger other actions
@@ -135,7 +135,7 @@ def propose_step_by_step_plan(d):
     """
 
     # Generate plan overview
-    plan_overview = query_ollama(d)
+    plan_overview = query_llm(d)
     d["plan"] = {"overview": plan_overview}
 
     # Extract number of steps
@@ -169,7 +169,7 @@ def extract_step_titles(d):
 
         """
 
-        step_title = query_ollama(d)
+        step_title = query_llm(d)
 
 
         d["plan"]["steps"][i] = {
@@ -216,10 +216,10 @@ def elaborate_on_steps(d):
         - Be determined and persistent in solving the problem, exploring alternative methods if necessary.
         - Do not include additional commentary inside code blocks.
         - Refrain from reinventing the wheel; use popular existing & widely adaopted tools and methods where obviously possible (object detection, text summerization, etc).
-        - You can always extend your knowlegde by talking with an LLM in python by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_ollama(d)" (assume this function is always available)
-        - Example of using the LLM python function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_ollama(d)"
-        - Query_ollama DOES NOT have direct access to the internet, so you need to provide the necessary information as part of the query.
-        - Refrain from using old traditional NLP methods when analyzing retrieved / downloaded content, instead use the query_ollama() function.
+        - You can always extend your knowlegde by talking with an LLM in python by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_llm(d)" (assume this function is always available)
+        - Example of using the LLM python function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_llm(d)"
+        - Query_llm DOES NOT have direct access to the internet, so you need to provide the necessary information as part of the query.
+        - Refrain from using old traditional NLP methods when analyzing retrieved / downloaded content, instead use the query_llm() function.
         - Refrain from using paid APIs, unless they are absolutely necessary.
         - If a step requires interactions with humans, ensure the communication is clear, pursuaive, triggers empathy and is effective.
         - Ensure you don't accidentally mix up python and bash commands in the same code block unless it is designed to specifically work together.
@@ -228,7 +228,7 @@ def elaborate_on_steps(d):
         """
 
         # Elaborate on step
-        step_elaboration = query_ollama(d)
+        step_elaboration = query_llm(d)
 
         # Update status to "elaborated"
         d["plan"]["steps"][i]["elaboration"] = step_elaboration

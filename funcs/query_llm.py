@@ -1,7 +1,7 @@
 import re
 from ollama import Client
 
-def query_ollama(d):
+def query_llm(d):
 
         if "model" not in d:
                 d["model"] = 'llama3.1:8b'

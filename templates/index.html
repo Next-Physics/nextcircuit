@@ -144,8 +144,11 @@
     background: #c0392b;
   }
 
-  /* Slight margin for port input under Ollama mode */
+  /* Slight margin for port/API key and the model */
   #ollama_port {
+    margin-left: 5px;
+  }
+  #chatgpt_model {
     margin-left: 5px;
   }
 
@@ -177,10 +180,10 @@
     margin-bottom: 10px;
   }
 
-  /* FILE ATTACHMENTS */
+  /* FILE ATTACHMENTS (VISIBLE) */
   .file-attachments {
     margin-bottom: 10px;
-    display: flex; /* was previously 'display:none;' => now visible */
+    display: flex; 
     flex-direction: column;
     gap: 5px;
   }
@@ -236,8 +239,9 @@
     font-size: 0.9em;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
   }
+  /* Results window narrower, plus two-column layout for file listing */
   .results-box {
-    flex: 0.8; /* slightly smaller now */
+    flex: 0.5; /* slightly less wide */
     background: #fafafa;
     border: 1px solid #ccc;
     padding: 15px;
@@ -254,12 +258,15 @@
     list-style: none;
     padding: 0;
     margin: 0;
+    column-count: 2; 
+    column-gap: 10px;
   }
   .results-list li {
     padding: 5px 0;
     border-bottom: 1px solid #ddd;
     font-size: 0.9em;
     word-wrap: break-word;
+    break-inside: avoid; /* avoid splitting li across columns */
   }
 
   /* RIGHT SIDEBAR: PLAN STEPS */
@@ -334,8 +341,13 @@
       grid-template-columns: 1fr;
       grid-template-rows: auto auto auto;
     }
+    .sidebar {
+      grid-row: 1;
+    }
+    .main {
+      grid-row: 2;
+    }
     .sidebar-right {
-      grid-column: 1 / span 1;
       grid-row: 3;
       flex-direction: row;
       flex-wrap: wrap;
@@ -391,11 +403,6 @@
     background:#e74c3c;
     color:#fff;
   }
-
-  @keyframes slowTravel {
-    0%   { left: -100%; }
-    100% { left: 100%; }
-  }
 </style>
 </head>
 <body>
@@ -438,7 +445,7 @@
         <div id="ollama_fields" style="display:flex;">
           <input type="text" id="ollama_ip" placeholder="Ollama IP" style="width:120px;">
           <input type="text" id="ollama_port" placeholder="Port" style="width:80px; margin-left:5px;">
-          <select id="ollama_model">
+          <select id="ollama_model" style="margin-left:5px;">
             <option value="mannix/llama3.1-8b-abliterated">mannix/llama3.1-8b-abliterated</option>
             <option value="llama3.1:8b">llama3.1:8b</option>
             <option value="llama3.2">llama3.2</option>
@@ -450,7 +457,7 @@
         <!-- ChatGPT Fields -->
         <div id="chatgpt_fields" style="display:none;">
           <input type="text" id="chatgpt_api_key" placeholder="API Key" style="width:200px;">
-          <select id="chatgpt_model">
+          <select id="chatgpt_model" style="margin-left:5px;">
             <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
             <option value="gpt-4">GPT-4</option>
             <option value="gpt-4-0314">GPT-4 (Mar 14)</option>
@@ -469,7 +476,7 @@
         <div class="timer">Time running: <span id="timer_value">00:00:00</span></div>
       </div>
 
-      <!-- File Attachments (VISIBLE NOW) -->
+      <!-- File Attachments (now visible) -->
       <div class="file-attachments">
         <div class="file-attachments-header">
           <button onclick="triggerFileSelect()">Add File</button>
@@ -525,6 +532,9 @@
     let planInterval = null;
     let titleInterval = null; // we'll poll for chain_title as well
 
+    /* Track if an agent has ever started. If so, show "Continue Agent" instead of "Start Agent." */
+    let agentEverStarted = false;
+
     document.addEventListener("DOMContentLoaded", function() {
       const savedIp = localStorage.getItem('ollama_ip');
       const savedPort = localStorage.getItem('ollama_port');
@@ -540,7 +550,13 @@
       if (savedModel) document.getElementById('chatgpt_model').value = savedModel;
 
       initialConversations = getCurrentConversationIds();
+      updateStartButtonLabel();
     });
+
+    function updateStartButtonLabel() {
+      const btn = document.getElementById("start_agent_btn");
+      btn.textContent = agentEverStarted ? "Continue Agent" : "Start Agent";
+    }
 
     function getCurrentConversationIds() {
       const items = document.querySelectorAll('.conversation-item[data-chain-id]');
@@ -558,10 +574,9 @@
       resetTimer();
       renderPlanSteps([]);
       activeChainId = null;
-      // clear results
       document.getElementById("results_list").innerHTML = "";
-      // clear conversation title
       document.getElementById("conversation_title").textContent = "";
+      updateStartButtonLabel();
     }
 
     function toggleModeFields() {
@@ -583,32 +598,21 @@
       const file = event.target.files[0];
       if (!file) return;
 
-      const formData = new FormData();
-      formData.append('file', file);
+      // We only have a "fake path" in the browser, no real absolute path
+      const fullFakePath = file.name; // or event.target.value => "C:\fakepath\filename"
+      // For display, we'll show file.name; for passing to main.py, we also store the same
+      // because the real path is not accessible to the browser for security reasons.
 
-      fetch('/upload_file', {
-        method: 'POST',
-        body: formData
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === 'ok') {
-          const fileId = 'file_' + Date.now();
-          // full path is data.path, but only display name in front-end
-          const displayName = data.path.split(/[\\/]/).pop(); 
-          attachedFiles.push({
-            id: fileId,
-            path: data.path,         // full path (for main.py)
-            displayName: displayName, // short name for UI
-            description: ''
-          });
-          renderAttachedFiles();
-        }
-      })
-      .catch(console.error)
-      .finally(() => {
-        event.target.value = "";
+      const fileId = 'file_' + Date.now();
+      const displayName = file.name; // filename + extension
+      attachedFiles.push({
+        id: fileId,
+        path: fullFakePath, // "fake path" for main.py
+        displayName: displayName,
+        description: ''
       });
+      renderAttachedFiles();
+      event.target.value = "";
     }
 
     function renderAttachedFiles() {
@@ -618,8 +622,8 @@
         const div = document.createElement('div');
         div.className = 'file-item';
 
+        // Show only displayName, pass the full path behind the scenes
         const fileNameSpan = document.createElement('span');
-        // Show only the short display name
         fileNameSpan.textContent = fileObj.displayName;
 
         const descInput = document.createElement('input');
@@ -639,7 +643,6 @@
         div.appendChild(fileNameSpan);
         div.appendChild(descInput);
         div.appendChild(removeBtn);
-
         container.appendChild(div);
       });
     }
@@ -648,7 +651,7 @@
       if (eventSource) eventSource.close();
       if (agentRunning) return;
 
-      // Freeze the query as soon as we start the agent
+      // Freeze the query
       document.getElementById("user_query").disabled = true;
 
       startTime = Date.now();
@@ -657,8 +660,6 @@
       timerInterval = setInterval(updateTimer, 1000);
 
       const mode = document.getElementById('mode_select').value;
-
-      // Collect parameters based on mode
       let modeParams = {};
       if (mode === 'ollama') {
         const ip = document.getElementById("ollama_ip").value;
@@ -686,17 +687,14 @@
       const query = document.getElementById("user_query").value;
       document.getElementById("output_area").textContent = "Starting agent...\n";
 
-      // Collect file data (full path + description) to pass to main.py
+      // We pass the "fake path" but do not actually copy files
       const filesData = attachedFiles.map(f => ({
         path: f.path,
         description: f.description || ''
       }));
       const filesJson = JSON.stringify(filesData);
 
-      // if we already have an activeChainId, pass it; else "None"
       const chainArg = activeChainId ? activeChainId : "None";
-
-      // Merge all parameters
       const params = new URLSearchParams({
         user_query: query,
         mode: mode,
@@ -727,14 +725,22 @@
       };
 
       agentRunning = true;
+      // Mark that we've started an agent at least once
+      if (!agentEverStarted) {
+        agentEverStarted = true;
+      }
+      // Switch button label to "Continue Agent" if agent not running
+      updateStartButtonLabel();
+
       showStopButton();
       showMainProgressBar();
 
-      // After a short delay, check for a new chain
-      setTimeout(checkForNewConversation, 1000);
+      // Immediately check for a new conversation
+      checkForNewConversation();
       renderPlanStepsPlaceholder();
     }
 
+    // Remove the setTimeout to show "New chat <time>" as soon as agent starts
     function checkForNewConversation() {
       fetch('/latest_conversations')
       .then(res => res.json())
@@ -742,11 +748,8 @@
         const currentIds = getCurrentConversationIds();
         for (let c of convs) {
           if (!initialConversations.includes(String(c.id)) && !currentIds.includes(String(c.id))) {
-            // new conversation found
-            // We'll create a time-labeled "New chat" text
             const nowStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            // e.g. "New chat 12:30"
-            addConversationToSidebar(c.id, `New chat ${nowStr}`, true /* isTemporary */);
+            addConversationToSidebar(c.id, `New chat ${nowStr}`, true);
             initialConversations.push(String(c.id));
             activeChainId = c.id;
             startPlanPolling();

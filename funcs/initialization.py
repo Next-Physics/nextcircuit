@@ -4,7 +4,7 @@ import sqlite3
 import platform
 import socket
 import subprocess
-from funcs.query_ollama import query_ollama
+from funcs.query_llm import query_llm
 from funcs.db_funcs import update_chains_db
 
 ### Setup Directories to host the database and results ###
@@ -63,6 +63,7 @@ def setup_dbs():
                  detected_os TEXT,
                  internet_connection TEXT,
                  history TEXT,
+                 run_time TEXT,
                  chain_created_time TEXT, 
                  chain_last_modified TEXT)
               ''')
@@ -201,7 +202,7 @@ def generate_chain_title(d):
     d["exe_prompt"] = pre_prompt + d["prompt"]
     
     ### Genrate title and id for the chain ###
-    d["title"] = query_ollama(d)
+    d["title"] = query_llm(d)
 
     update_chain_title(d)
     
