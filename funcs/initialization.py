@@ -297,4 +297,12 @@ def check_internet_connection(host="8.8.8.8", port=53, timeout=3):
     except socket.error:
         return False
 
+def submit_supplimentary_info(d):
+    conn = sqlite3.connect('db/main.db')
+    c = conn.cursor()
+    query = "UPDATE chains SET attached_files = ?, chain_last_modified = datetime('now') WHERE id = ?"
+    c.execute(query, (str(d["attached_files"]),d["id"]))
+    conn.commit()
+    conn.close()
+
 

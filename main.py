@@ -8,8 +8,7 @@ from funcs.db_funcs import update_chains_db
 ### Importing Initialization functions ###
 from funcs.initialization import setup_dirs
 from funcs.initialization import setup_dbs
-# from funcs.initialization import get_ollama_port
-# from funcs.initialization import get_local_ip
+from funcs.initialization import submit_supplimentary_info
 from funcs.initialization import investigate_circumstances
 from funcs.initialization import generate_chain_title
 from funcs.initialization import generate_new_chain_id
@@ -82,8 +81,13 @@ def main():
 
     d["id"] = generate_new_chain_id()
 
+
+
     # Set up chain_id results directory results/<chain_id>
     create_chain_results_dir(d)
+
+    # Submit supplimentary information to the database
+    submit_supplimentary_info(d)
 
     # Overwrite print function to also log to database
     builtins.print = create_print_with_logging(d["id"])

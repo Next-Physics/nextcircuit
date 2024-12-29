@@ -909,7 +909,7 @@
         for (let c of convs) {
           if (!initialConversations.includes(String(c.id)) && !currentIds.includes(String(c.id))) {
             const nowStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            addConversationToSidebar(c.id, `New chat ${nowStr}`, true);
+            addConversationToSidebar(c.id, New chat ${nowStr}, true);
             initialConversations.push(String(c.id));
             activeChainId = c.id;
             startPlanPolling(); // start fetching steps frequently
@@ -933,7 +933,7 @@
 
       const titleDiv = document.createElement('div');
       titleDiv.className = 'conversation-title';
-      titleDiv.textContent = `${title} | ${chain_id}`;
+      titleDiv.textContent = ${title} | ${chain_id};
       titleDiv.onclick = () => {
         loadConversation(chain_id);
         activeChainId = chain_id;
@@ -963,7 +963,7 @@
       if (titleInterval) clearInterval(titleInterval);
 
       titleInterval = setInterval(() => {
-        fetch(`/get_title?chain_id=${activeChainId}`)
+        fetch(/get_title?chain_id=${activeChainId})
         .then(res => res.json())
         .then(data => {
           if (data.title && data.title.trim().length > 0) {
@@ -978,11 +978,11 @@
     }
 
     function updateSidebarTitle(chain_id, realTitle) {
-      const item = document.querySelector(`.conversation-item[data-chain-id='${chain_id}']`);
+      const item = document.querySelector(.conversation-item[data-chain-id='${chain_id}']);
       if (item) {
         const titleDiv = item.querySelector('.conversation-title');
         if (titleDiv) {
-          titleDiv.textContent = `${realTitle} | ${chain_id}`;
+          titleDiv.textContent = ${realTitle} | ${chain_id};
         }
       }
     }
@@ -1100,7 +1100,7 @@
       .then(res => res.json())
       .then(data => {
         if (data.status === "deleted") {
-          const item = document.querySelector(`.conversation-item[data-chain-id='${chainIdToDelete}']`);
+          const item = document.querySelector(.conversation-item[data-chain-id='${chainIdToDelete}']);
           if (item) item.remove();
           initialConversations = initialConversations.filter(cid => cid !== String(chainIdToDelete));
           if (activeChainId === chainIdToDelete) {
@@ -1131,7 +1131,7 @@
       const mm = String(mins).padStart(2, '0');
       const ss = String(secs).padStart(2, '0');
 
-      document.getElementById("timer_value").textContent = `${hh}:${mm}:${ss}`;
+      document.getElementById("timer_value").textContent = ${hh}:${mm}:${ss};
     }
 
     /* ---------- PLAN STEPS SIDEBAR LOGIC ---------- */
@@ -1147,7 +1147,7 @@
 
     function fetchPlanSteps() {
       if (!activeChainId) return;
-      fetch(`/get_plan?chain_id=${activeChainId}`)
+      fetch(/get_plan?chain_id=${activeChainId})
       .then(res => res.json())
       .then(data => {
         if (!data.plan) {
@@ -1168,7 +1168,7 @@
     }
 
     function showAwaitingPlan() {
-      document.getElementById('plan_steps_container').innerHTML = `<div class="awaiting-plan">Awaiting plan...</div>`;
+      document.getElementById('plan_steps_container').innerHTML = <div class="awaiting-plan">Awaiting plan...</div>;
     }
 
     function renderPlanSteps(dataObj) {
@@ -1196,7 +1196,7 @@
           const shortText = shortSummary(text, 50);
 
           const titleSpan = document.createElement('span');
-          titleSpan.textContent = `Step ${i}) ${shortText}`;
+          titleSpan.textContent = Step ${i}) ${shortText};
           headerDiv.appendChild(iconSpan);
           headerDiv.appendChild(titleSpan);
           stepDiv.appendChild(headerDiv);
@@ -1233,7 +1233,7 @@
           // placeholder step
           iconSpan.textContent = "🔘";
           const titleSpan = document.createElement('span');
-          titleSpan.textContent = `Step ${i}) ... (awaiting title)`;
+          titleSpan.textContent = Step ${i}) ... (awaiting title);
           headerDiv.appendChild(iconSpan);
           headerDiv.appendChild(titleSpan);
           stepDiv.appendChild(headerDiv);
@@ -1285,11 +1285,11 @@
     /* STEP DETAIL POPUP LOGIC */
     function openStepDetail(stepIndex) {
       if (!lastPlanData || !lastPlanData.steps || !lastPlanData.steps[stepIndex]) {
-        showStepModal(`Step ${stepIndex}`, "No elaboration available.");
+        showStepModal(Step ${stepIndex}, "No elaboration available.");
         return;
       }
       const stepObj = lastPlanData.steps[stepIndex];
-      const stepTitle = stepObj.step_title || `Step ${stepIndex}`;
+      const stepTitle = stepObj.step_title || Step ${stepIndex};
       const stepElaboration = stepObj.elaboration || "";
 
       const bodyText = stepElaboration ? stepElaboration : "No elaboration yet.";
@@ -1313,7 +1313,7 @@
     /* RESULTS POLLING */
     function refreshResults() {
       if (!activeChainId) return;
-      fetch(`/get_results/${activeChainId}`)
+      fetch(/get_results/${activeChainId})
       .then(res => res.json())
       .then(files => {
         const list = document.getElementById("results_list");
@@ -1338,18 +1338,18 @@
     /* PROGRESS POLLING LOGIC */
     function fetchProgress() {
       if (!activeChainId) return;
-      fetch(`/get_progress?chain_id=${activeChainId}`)
+      fetch(/get_progress?chain_id=${activeChainId})
       .then(res => res.json())
       .then(data => {
         const pct = data.progress_pct;
         const stage = data.progress_stage;
 
-        document.getElementById("progress_pct").textContent = `${pct}%`;
+        document.getElementById("progress_pct").textContent = ${pct}%;
         document.getElementById("progress_stage").textContent = stage || "Not started";
 
         // Update the progress bar width
         const progressFill = document.getElementById("overall_progress_fill");
-        progressFill.style.width = `${pct}%`;
+        progressFill.style.width = ${pct}%;
       })
       .catch(err => console.error(err));
     }
