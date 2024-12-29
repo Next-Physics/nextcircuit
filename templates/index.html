@@ -241,7 +241,7 @@
   }
   /* Results window narrower, plus two-column layout for file listing */
   .results-box {
-    flex: 0.5; /* slightly less wide than before */
+    flex: 0.5; /* narrower */
     background: #fafafa;
     border: 1px solid #ccc;
     padding: 15px;
@@ -294,7 +294,7 @@
     display: flex;
     flex-direction: column; 
     gap: 5px;
-    cursor: pointer; /* so user knows it's clickable */
+    cursor: pointer;
   }
   .plan-step:hover {
     background: #f2f2f2;
@@ -424,47 +424,59 @@
   }
   .step-detail-box {
     background: #fff;
-    color: #333;
     border-radius: 6px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    color: #333;
+    position: relative;
+    max-height: 80vh; /* scroll if content too large */
+    width: 90%;
     max-width: 500px;
-    max-height: 80vh; /* so user can scroll within the modal */
-    display: flex;
-    flex-direction: column; /* header stays pinned, content scrolls */
-    position: relative;
-    width: 100%;
-  }
-  .step-detail-header {
-    flex-shrink: 0;
-    padding: 10px 40px 10px 10px;
-    background: #f1f1f1;
-    border-radius: 6px 6px 0 0;
-    position: relative;
-  }
-  .step-detail-header h4 {
-    margin: 0;
-    font-size: 1.1em;
-    color: #444;
-  }
-  .step-detail-close {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    background: none;
-    border: none;
-    font-size: 1.2em;
-    cursor: pointer;
-    color: #aaa;
-  }
-  .step-detail-close:hover {
-    color: #666;
-  }
-  .step-detail-content {
-    flex: 1;
     overflow-y: auto;
-    padding: 15px;
-    font-size: 0.9em;
-    white-space: pre-wrap;
+    padding: 20px;
+  }
+  .step-detail-box h4 {
+    margin-top:0;
+    font-size:1.1em;
+    padding:0;
+    position: sticky;
+    top:0;
+    background:#fff;
+    z-index:2;
+    padding-bottom:6px;
+    margin-bottom:4px;
+  }
+  .step-detail-box hr {
+    position: sticky;
+    top: 1.8em; /* just below the pinned title */
+    background:#ddd;
+    margin:0;
+    z-index:2;
+    border:none;
+    height:1px;
+  }
+  .step-detail-box .close-btn {
+    position: absolute;
+    top:8px;
+    right:8px;
+    background:transparent;
+    border:none;
+    font-size:1.2em;
+    cursor:pointer;
+    color:#aaa;
+  }
+  .step-detail-box .close-btn:hover {
+    color:#666;
+  }
+  .step-detail-body {
+    margin-top:10px;
+    font-size:0.9em;
+    text-align:left;
+    white-space:pre-wrap;
+  }
+
+  @keyframes slowTravel {
+    0%   { left: -100%; }
+    100% { left: 100%; }
   }
 </style>
 </head>
@@ -536,7 +548,7 @@
         <div class="timer">Time running: <span id="timer_value">00:00:00</span></div>
       </div>
 
-      <!-- File Attachments (now visible) -->
+      <!-- File Attachments (visible) -->
       <div class="file-attachments">
         <div class="file-attachments-header">
           <button onclick="triggerFileSelect()">Add File</button>
@@ -571,11 +583,10 @@
   <!-- STEP DETAIL MODAL (for plan-step elaboration) -->
   <div class="step-detail-overlay" id="step_detail_overlay">
     <div class="step-detail-box">
-      <div class="step-detail-header">
-        <h4 id="step_detail_title"></h4>
-        <button class="step-detail-close" onclick="closeStepDetail()">✕</button>
-      </div>
-      <div class="step-detail-content" id="step_detail_body"></div>
+      <button class="close-btn" onclick="closeStepDetail()">✕</button>
+      <h4 id="step_detail_title">Step Title</h4>
+      <hr>
+      <div class="step-detail-body" id="step_detail_body"></div>
     </div>
   </div>
 
@@ -600,13 +611,12 @@
     let agentRunning = false;
     let initialConversations = [];
     let activeChainId = null;
-    let planInterval = null;
-    let titleInterval = null; // we'll poll for chain_title as well
+    let planInterval = null; 
+    let titleInterval = null; 
+    let conversationInterval = null; // new interval for new conversation detection
+    let agentEverStarted = false; // track if an agent has started
 
-    /* Track if an agent has ever started. If so, show "Continue Agent" instead of "Start Agent." */
-    let agentEverStarted = false;
-
-    /* We'll store the last fetched plan so we can show step details in a modal. */
+    /* We'll store the last fetched plan to display step details in a modal. */
     let lastPlanData = null;
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -640,7 +650,7 @@
     function newAgent() {
       document.getElementById("output_area").textContent = "";
       document.getElementById("user_query").value = "";
-      document.getElementById("user_query").disabled = false; // re-enable for new conversation
+      document.getElementById("user_query").disabled = false; 
       attachedFiles = [];
       renderAttachedFiles();
       stopAgentIfRunning();
@@ -659,7 +669,7 @@
       if (mode === 'ollama') {
         document.getElementById('ollama_fields').style.display = 'flex';
         document.getElementById('chatgpt_fields').style.display = 'none';
-      } else if (mode === 'chatgpt') {
+      } else {
         document.getElementById('ollama_fields').style.display = 'none';
         document.getElementById('chatgpt_fields').style.display = 'flex';
       }
@@ -675,10 +685,9 @@
 
       const fileId = 'file_' + Date.now();
       const displayName = file.name; 
-      // Typically "C:\fakepath\filename.ext" for security
       attachedFiles.push({
         id: fileId,
-        path: file.name, // pass this to main.py
+        path: file.name, // 'fake path' for main.py
         displayName: displayName,
         description: ''
       });
@@ -722,7 +731,6 @@
       if (agentRunning) return;
 
       document.getElementById("user_query").disabled = true;
-
       startTime = Date.now();
       if (timerInterval) clearInterval(timerInterval);
       updateTimer();
@@ -742,7 +750,7 @@
           ollama_port: port,
           ollama_model: model
         };
-      } else if (mode === 'chatgpt') {
+      } else {
         const apiKey = document.getElementById("chatgpt_api_key").value;
         const model = document.getElementById("chatgpt_model").value;
         localStorage.setItem('chatgpt_api_key', apiKey);
@@ -793,23 +801,15 @@
       };
 
       agentRunning = true;
-      if (!agentEverStarted) {
-        agentEverStarted = true;
-      }
+      if (!agentEverStarted) agentEverStarted = true;
       updateStartButtonLabel();
-
       showStopButton();
       showMainProgressBar();
 
-      // If continuing an existing chain:
-      if (chainArg !== "None") {
-        activeChainId = chainArg;
-        startPlanPolling();
-        pollChainTitle();
-      } else {
-        // brand-new chain
-        checkForNewConversation();
-      }
+      // Start checking for new conversation repeatedly until found
+      if (conversationInterval) clearInterval(conversationInterval);
+      conversationInterval = setInterval(checkForNewConversation, 2000);
+      // Also begin plan placeholder
       renderPlanStepsPlaceholder();
     }
 
@@ -818,15 +818,22 @@
       .then(res => res.json())
       .then(convs => {
         const currentIds = getCurrentConversationIds();
+        let foundNew = false;
         for (let c of convs) {
           if (!initialConversations.includes(String(c.id)) && !currentIds.includes(String(c.id))) {
             const nowStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             addConversationToSidebar(c.id, `New chat ${nowStr}`, true);
             initialConversations.push(String(c.id));
             activeChainId = c.id;
-            startPlanPolling();
-            pollChainTitle();
+            startPlanPolling(); // start fetching steps frequently
+            pollChainTitle();   // start fetching title frequently
+            foundNew = true;
           }
+        }
+        if (foundNew) {
+          // We can stop checking for new conversation once found
+          clearInterval(conversationInterval);
+          conversationInterval = null;
         }
       });
     }
@@ -858,6 +865,7 @@
       container.insertBefore(div, container.firstChild);
     }
 
+    /* Increase poll frequency for conversation title to 1s instead of 2s. */
     function pollChainTitle() {
       if (!activeChainId) return;
       if (titleInterval) clearInterval(titleInterval);
@@ -874,7 +882,7 @@
           }
         })
         .catch(err => console.error(err));
-      }, 2000);
+      }, 1000);
     }
 
     function updateSidebarTitle(chain_id, realTitle) {
@@ -957,7 +965,7 @@
         document.getElementById("user_query").disabled = true;
 
         activeChainId = id;
-        pollChainTitle();
+        pollChainTitle(); 
         startPlanPolling();
       });
     }
@@ -1022,11 +1030,12 @@
 
     /* ---------- PLAN STEPS SIDEBAR LOGIC ---------- */
     function startPlanPolling() {
-      if (!activeChainId) return;
       if (planInterval) clearInterval(planInterval);
-      // poll every 2s so steps appear quickly
-      planInterval = setInterval(fetchPlanSteps, 2000);
-      fetchPlanSteps();
+      if (activeChainId) {
+        // now poll every 2s instead of 3
+        planInterval = setInterval(fetchPlanSteps, 2000);
+        fetchPlanSteps(); 
+      }
       refreshResults();
     }
 
@@ -1053,8 +1062,7 @@
     }
 
     function showAwaitingPlan() {
-      const container = document.getElementById('plan_steps_container');
-      container.innerHTML = `<div class="awaiting-plan">Awaiting plan...</div>`;
+      document.getElementById('plan_steps_container').innerHTML = `<div class="awaiting-plan">Awaiting plan...</div>`;
     }
 
     function renderPlanSteps(dataObj) {
@@ -1073,11 +1081,12 @@
         const iconSpan = document.createElement('span');
         iconSpan.className = "step-icon";
 
-        const stepObj = steps[i];
-        if (stepObj) {
-          const status = stepObj.status || "pending";
+        const step = steps[i];
+        if (step) {
+          const status = step.status || "pending";
           iconSpan.textContent = getStepIcon(status);
-          const text = stepObj.step_title || stepObj.elaboration || "... (awaiting details)";
+
+          const text = step.step_title || step.elaboration || "... (awaiting details)";
           const shortText = shortSummary(text, 50);
 
           const titleSpan = document.createElement('span');
@@ -1110,20 +1119,19 @@
             fill.style.borderRadius = "4px";
             fill.style.animation = "slowTravel 4s linear infinite";
             fill.style.background = (status === "elaborating") ? "#f1c40f" : "#3498db";
+
             bar.appendChild(fill);
             stepDiv.appendChild(bar);
           }
         } else {
-          // placeholder if step i not in plan
+          // placeholder step
           iconSpan.textContent = "🔘";
-
           const titleSpan = document.createElement('span');
           titleSpan.textContent = `Step ${i}) ... (awaiting title)`;
           headerDiv.appendChild(iconSpan);
           headerDiv.appendChild(titleSpan);
           stepDiv.appendChild(headerDiv);
         }
-
         container.appendChild(stepDiv);
       }
     }
@@ -1167,20 +1175,19 @@
       if (txt.length <= maxLen) return txt;
       return txt.substring(0, maxLen-3) + "...";
     }
-    /* ---------- END PLAN STEPS SIDEBAR ---------- */
 
     /* STEP DETAIL POPUP LOGIC */
     function openStepDetail(stepIndex) {
-      // We'll use the lastPlanData to find this step's elaboration
       if (!lastPlanData || !lastPlanData.steps || !lastPlanData.steps[stepIndex]) {
-        // fallback: step not available, show basic
         showStepModal(`Step ${stepIndex}`, "No elaboration available.");
         return;
       }
       const stepObj = lastPlanData.steps[stepIndex];
       const stepTitle = stepObj.step_title || `Step ${stepIndex}`;
-      const stepElaboration = stepObj.elaboration || "No elaboration yet.";
-      showStepModal(stepTitle, stepElaboration);
+      const stepElaboration = stepObj.elaboration || "";
+
+      const bodyText = stepElaboration ? stepElaboration : "No elaboration yet.";
+      showStepModal(stepTitle, bodyText);
     }
 
     function showStepModal(title, body) {
@@ -1197,6 +1204,7 @@
       document.getElementById("step_detail_body").textContent = "";
     }
 
+    /* RESULTS POLLING */
     function refreshResults() {
       if (!activeChainId) return;
       fetch(`/get_results/${activeChainId}`)
@@ -1220,7 +1228,6 @@
 
     // Poll the chain-specific results folder every 5 seconds
     setInterval(refreshResults, 5000);
-
   </script>
 </body>
 </html>
