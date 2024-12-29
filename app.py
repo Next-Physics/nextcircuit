@@ -10,7 +10,9 @@ app = Flask(__name__)
 
 DB_PATH = 'db/main.db'
 UPLOAD_DIR = 'uploaded_files'
+RESULTS_DIR = 'results'  # Root results directory
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
 running_process = None
 
@@ -20,7 +22,7 @@ def get_conversations():
         return []
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # We assume there's a user_query and plan columns in the chains table
+    # Assuming there's a user_query and plan columns in the chains table
     cursor.execute("""
         SELECT id, chain_title, history, chain_last_modified, user_query
           FROM chains
@@ -76,7 +78,8 @@ def delete_conversation():
         return jsonify({'status': 'error', 'message': 'Database not found'})
 
     # Remove the folder results/<chain_id> if it exists.
-    results_dir = os.path.join('results', chain_id)
+    # Ensure that only the specific subfolder is deleted.
+    results_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), RESULTS_DIR, chain_id))
     if os.path.exists(results_dir) and os.path.isdir(results_dir):
         import shutil
         shutil.rmtree(results_dir, ignore_errors=True)
@@ -185,7 +188,7 @@ def get_results(chain_id):
     Lists all files in results/<chain_id>/ directory.
     If it doesn't exist, return empty list.
     """
-    results_dir = os.path.join('results', chain_id)
+    results_dir = os.path.join(RESULTS_DIR, chain_id)
     if not os.path.exists(results_dir) or not os.path.isdir(results_dir):
         return jsonify([])
 
@@ -254,6 +257,25 @@ def get_plan():
                 plan_dict = None
     # If not a string, do nothing
     return jsonify({'plan': plan_dict})
+
+@app.route('/get_progress', methods=['GET'])
+def get_progress():
+    """Returns progress_pct and progress_stage for a given chain_id."""
+    chain_id = request.args.get('chain_id', '')
+    if not chain_id:
+        return jsonify({'progress_pct': 0, 'progress_stage': ''})
+    if not os.path.exists(DB_PATH):
+        return jsonify({'progress_pct': 0, 'progress_stage': ''})
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT progress_pct, progress_stage FROM chains WHERE id = ?", (chain_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if row:
+        return jsonify({'progress_pct': row[0] or 0, 'progress_stage': row[1] or ''})
+    return jsonify({'progress_pct': 0, 'progress_stage': ''})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

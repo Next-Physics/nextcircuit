@@ -152,6 +152,31 @@
     margin-left: 5px;
   }
 
+  /* OVERALL PROGRESS INDICATOR */
+  .overall-progress {
+    margin-bottom: 10px;
+  }
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+  }
+  .overall-progress-bar {
+    width: 100%;
+    background-color: #eee;
+    border-radius: 4px;
+    overflow: hidden;
+    height: 20px;
+    position: relative;
+  }
+  .overall-progress-fill {
+    height: 100%;
+    background-color: #2ecc71;
+    width: 0%;
+    transition: width 0.5s ease-in-out;
+  }
+
   /* Progress bar at bottom of main conversation */
   #main_progress_bar {
     position: absolute;
@@ -557,11 +582,25 @@
         <div id="attached_files_container"></div>
       </div>
 
+      <!-- SPLIT VIEW (OUTPUT + RESULTS) -->
       <div class="split-view">
         <div class="output-area" id="output_area"></div>
         <div class="results-box">
           <h4>Results</h4>
           <ul class="results-list" id="results_list"></ul>
+        </div>
+      </div>
+
+      <!-- OVERALL PROGRESS INDICATOR -->
+      <div class="overall-progress">
+        <div class="progress-info">
+          <span id="progress_pct">0%</span>
+          <span id="progress_stage">Not started</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="overall-progress-bar" id="overall_progress_bar">
+            <div class="overall-progress-fill" id="overall_progress_fill"></div>
+          </div>
         </div>
       </div>
 
@@ -614,6 +653,7 @@
     let planInterval = null; 
     let titleInterval = null; 
     let conversationInterval = null; // new interval for new conversation detection
+    let progressInterval = null; // new interval for progress polling
     let agentEverStarted = false; // track if an agent has started
 
     /* We'll store the last fetched plan to display step details in a modal. */
@@ -661,7 +701,23 @@
       document.getElementById("results_list").innerHTML = "";
       document.getElementById("conversation_title").textContent = "";
       lastPlanData = null;
+      agentEverStarted = false; // Reset agentEverStarted
       updateStartButtonLabel();
+
+      // Also reset progress indicators
+      resetProgressIndicators();
+    }
+
+    function resetProgressIndicators() {
+      document.getElementById("progress_pct").textContent = "0%";
+      document.getElementById("progress_stage").textContent = "Not started";
+      document.getElementById("overall_progress_fill").style.width = "0%";
+
+      // Clear any existing progress polling
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
     }
 
     function toggleModeFields() {
@@ -684,14 +740,35 @@
       if (!file) return;
 
       const fileId = 'file_' + Date.now();
-      const displayName = file.name; 
-      attachedFiles.push({
-        id: fileId,
-        path: file.name, // 'fake path' for main.py
-        displayName: displayName,
-        description: ''
+      const displayName = file.name;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      fetch('/upload_file', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          const serverPath = data.path;
+          attachedFiles.push({
+            id: fileId,
+            path: serverPath, // full path to pass to main.py
+            displayName: displayName, // display only filename
+            description: ''
+          });
+          renderAttachedFiles();
+        } else {
+          alert('File upload failed: ' + data.message);
+        }
+      })
+      .catch(err => {
+        console.error('Upload error:', err);
+        alert('File upload failed.');
       });
-      renderAttachedFiles();
+
       event.target.value = "";
     }
 
@@ -793,6 +870,12 @@
           showStartButton();
           hideMainProgressBar();
           agentRunning = false;
+
+          // Stop progress polling when agent stops
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+          }
         } else {
           document.getElementById("output_area").textContent += e.data + "\n";
           const output = document.getElementById("output_area");
@@ -811,6 +894,10 @@
       conversationInterval = setInterval(checkForNewConversation, 2000);
       // Also begin plan placeholder
       renderPlanStepsPlaceholder();
+      // Start polling progress
+      if (progressInterval) clearInterval(progressInterval);
+      progressInterval = setInterval(fetchProgress, 2000);
+      fetchProgress(); // initial call
     }
 
     function checkForNewConversation() {
@@ -852,6 +939,11 @@
         activeChainId = chain_id;
         startPlanPolling();
         pollChainTitle();
+
+        // Start polling progress when a conversation is loaded
+        if (progressInterval) clearInterval(progressInterval);
+        progressInterval = setInterval(fetchProgress, 2000);
+        fetchProgress(); // initial call
       };
 
       const deleteDiv = document.createElement('div');
@@ -913,6 +1005,12 @@
           showStartButton();
           hideMainProgressBar();
           agentRunning = false;
+
+          // Stop progress polling when agent stops
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+          }
         }
       });
     }
@@ -967,6 +1065,11 @@
         activeChainId = id;
         pollChainTitle(); 
         startPlanPolling();
+
+        // Start polling progress when a conversation is loaded
+        if (progressInterval) clearInterval(progressInterval);
+        progressInterval = setInterval(fetchProgress, 2000);
+        fetchProgress(); // initial call
       });
     }
 
@@ -1005,6 +1108,9 @@
             activeChainId = null;
             document.getElementById("results_list").innerHTML = "";
             document.getElementById("conversation_title").textContent = "";
+
+            // Reset progress indicators
+            resetProgressIndicators();
           }
         }
         closeDeleteModal();
@@ -1228,6 +1334,25 @@
 
     // Poll the chain-specific results folder every 5 seconds
     setInterval(refreshResults, 5000);
+
+    /* PROGRESS POLLING LOGIC */
+    function fetchProgress() {
+      if (!activeChainId) return;
+      fetch(`/get_progress?chain_id=${activeChainId}`)
+      .then(res => res.json())
+      .then(data => {
+        const pct = data.progress_pct;
+        const stage = data.progress_stage;
+
+        document.getElementById("progress_pct").textContent = `${pct}%`;
+        document.getElementById("progress_stage").textContent = stage || "Not started";
+
+        // Update the progress bar width
+        const progressFill = document.getElementById("overall_progress_fill");
+        progressFill.style.width = `${pct}%`;
+      })
+      .catch(err => console.error(err));
+    }
   </script>
 </body>
 </html>

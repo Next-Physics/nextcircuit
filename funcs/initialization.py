@@ -56,6 +56,8 @@ def setup_dbs():
                  chain_title TEXT, 
                  user_query TEXT,
                  plan TEXT,
+                 progress_stage TEXT,
+                 progress_pct INTEGER,
                  curret_step TEXT,
                  attached_files TEXT,
                  proof_of_achievement TEXT, 

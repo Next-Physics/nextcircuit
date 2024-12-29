@@ -2,6 +2,9 @@
 import os, argparse, sys
 import builtins
 
+### Importing database update functions ###
+from funcs.db_funcs import update_chains_db
+
 ### Importing Initialization functions ###
 from funcs.initialization import setup_dirs
 from funcs.initialization import setup_dbs
@@ -85,25 +88,27 @@ def main():
     # Overwrite print function to also log to database
     builtins.print = create_print_with_logging(d["id"])
 
-    #print(d)
-
+    # Update the initial progress
+    update_chains_db(d["id"], "progress_stage", "Starting...")
+    update_chains_db(d["id"], "progress_pct", 0)
+    
 
     print("PROMPT: ", d["prompt"])
     print("")
 
 
-
-
-    # # Category content
-    # categorize_content(d)
-
     # Generate chain title
+    update_chains_db(d["id"], "progress_stage", "Generating agent title...")
     generate_chain_title(d)
+    
 
     # Elabroate on the prompt
+    update_chains_db(d["id"], "progress_stage", "Enriching user prompt for detailed understanding...")
     create_elaboration_prompt(d)
+    update_chains_db(d["id"], "progress_pct", 1)
 
     # Investigate circumstances (Physical Hardware, OS, Internet Connection)
+    update_chains_db(d["id"], "progress_stage", "Gathering details on users physical hardware...")
     investigate_circumstances(d)
 
     ############################################################
@@ -111,20 +116,28 @@ def main():
     ############################################################
 
     # Propose a step-by-step plan
+    update_chains_db(d["id"], "progress_stage", "Laying out step-by-step plan to achieve the goal...")
     propose_step_by_step_plan(d)
+    update_chains_db(d["id"], "progress_pct", 2)
     
     # Extract the step titles
+    update_chains_db(d["id"], "progress_stage", "Extracting titles for each step...")
     extract_step_titles(d)
 
     # Elaborate on each step of the plan
+    update_chains_db(d["id"], "progress_stage", "Elaborating & extending each step of the plan to gain more details...")
     elaborate_on_steps(d)
+    update_chains_db(d["id"], "progress_pct", 3)
     
     #############################################################
     #################### EXECUTE PLAN ###########################
     #############################################################
 
     # Start execution of the plan
+    update_chains_db(d["id"], "progress_stage", "Executing plan...")
     execute_plan(d)
+    update_chains_db(d["id"], "progress_stage", "Finished")
+    update_chains_db(d["id"], "progress_pct", 100)
 
 
 
