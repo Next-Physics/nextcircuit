@@ -241,7 +241,7 @@
   }
   /* Results window narrower, plus two-column layout for file listing */
   .results-box {
-    flex: 0.5; /* slightly less wide */
+    flex: 0.5; /* slightly less wide than before */
     background: #fafafa;
     border: 1px solid #ccc;
     padding: 15px;
@@ -294,6 +294,10 @@
     display: flex;
     flex-direction: column; 
     gap: 5px;
+    cursor: pointer; /* so user knows it's clickable */
+  }
+  .plan-step:hover {
+    background: #f2f2f2;
   }
   .plan-step-header {
     display: flex;
@@ -403,6 +407,65 @@
     background:#e74c3c;
     color:#fff;
   }
+
+  /* STEP DETAIL POPUP STYLES */
+  .step-detail-overlay {
+    position: fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000; /* above everything else */
+  }
+  .step-detail-overlay.active {
+    display: flex;
+  }
+  .step-detail-box {
+    background: #fff;
+    color: #333;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    max-width: 500px;
+    max-height: 80vh; /* so user can scroll within the modal */
+    display: flex;
+    flex-direction: column; /* header stays pinned, content scrolls */
+    position: relative;
+    width: 100%;
+  }
+  .step-detail-header {
+    flex-shrink: 0;
+    padding: 10px 40px 10px 10px;
+    background: #f1f1f1;
+    border-radius: 6px 6px 0 0;
+    position: relative;
+  }
+  .step-detail-header h4 {
+    margin: 0;
+    font-size: 1.1em;
+    color: #444;
+  }
+  .step-detail-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+    color: #aaa;
+  }
+  .step-detail-close:hover {
+    color: #666;
+  }
+  .step-detail-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+  }
 </style>
 </head>
 <body>
@@ -450,7 +513,6 @@
             <option value="llama3.1:8b">llama3.1:8b</option>
             <option value="llama3.2">llama3.2</option>
             <option value="llama3.2:1b">llama3.2:1b</option>
-            <!-- Add more Ollama models as needed -->
           </select>
         </div>
 
@@ -506,6 +568,17 @@
     </div>
   </div>
 
+  <!-- STEP DETAIL MODAL (for plan-step elaboration) -->
+  <div class="step-detail-overlay" id="step_detail_overlay">
+    <div class="step-detail-box">
+      <div class="step-detail-header">
+        <h4 id="step_detail_title"></h4>
+        <button class="step-detail-close" onclick="closeStepDetail()">✕</button>
+      </div>
+      <div class="step-detail-content" id="step_detail_body"></div>
+    </div>
+  </div>
+
   <!-- MODAL FOR DELETE CONFIRMATION -->
   <div class="modal-overlay" id="delete_modal">
     <div class="modal-box">
@@ -532,6 +605,9 @@
 
     /* Track if an agent has ever started. If so, show "Continue Agent" instead of "Start Agent." */
     let agentEverStarted = false;
+
+    /* We'll store the last fetched plan so we can show step details in a modal. */
+    let lastPlanData = null;
 
     document.addEventListener("DOMContentLoaded", function() {
       const savedIp = localStorage.getItem('ollama_ip');
@@ -574,6 +650,7 @@
       activeChainId = null;
       document.getElementById("results_list").innerHTML = "";
       document.getElementById("conversation_title").textContent = "";
+      lastPlanData = null;
       updateStartButtonLabel();
     }
 
@@ -596,16 +673,12 @@
       const file = event.target.files[0];
       if (!file) return;
 
-      // We only have a "fake path" in the browser, no real absolute path
-      const fullFakePath = file.name; // or event.target.value => "C:\fakepath\filename"
-      // For display, we'll show file.name; for passing to main.py, we also store the same
-      // because the real path is not accessible to the browser for security reasons.
-
       const fileId = 'file_' + Date.now();
-      const displayName = file.name; // filename + extension
+      const displayName = file.name; 
+      // Typically "C:\fakepath\filename.ext" for security
       attachedFiles.push({
         id: fileId,
-        path: fullFakePath, // "fake path" for main.py
+        path: file.name, // pass this to main.py
         displayName: displayName,
         description: ''
       });
@@ -620,7 +693,6 @@
         const div = document.createElement('div');
         div.className = 'file-item';
 
-        // Show only displayName, pass the full path behind the scenes
         const fileNameSpan = document.createElement('span');
         fileNameSpan.textContent = fileObj.displayName;
 
@@ -649,7 +721,6 @@
       if (eventSource) eventSource.close();
       if (agentRunning) return;
 
-      // Freeze the query
       document.getElementById("user_query").disabled = true;
 
       startTime = Date.now();
@@ -685,7 +756,6 @@
       const query = document.getElementById("user_query").value;
       document.getElementById("output_area").textContent = "Starting agent...\n";
 
-      // We pass the "fake path" but do not actually copy files
       const filesData = attachedFiles.map(f => ({
         path: f.path,
         description: f.description || ''
@@ -723,22 +793,26 @@
       };
 
       agentRunning = true;
-      // Mark that we've started an agent at least once
       if (!agentEverStarted) {
         agentEverStarted = true;
       }
-      // Switch button label to "Continue Agent" if agent not running
       updateStartButtonLabel();
 
       showStopButton();
       showMainProgressBar();
 
-      // Immediately check for a new conversation
-      checkForNewConversation();
+      // If continuing an existing chain:
+      if (chainArg !== "None") {
+        activeChainId = chainArg;
+        startPlanPolling();
+        pollChainTitle();
+      } else {
+        // brand-new chain
+        checkForNewConversation();
+      }
       renderPlanStepsPlaceholder();
     }
 
-    // Remove the setTimeout to show "New chat <time>" as soon as agent starts
     function checkForNewConversation() {
       fetch('/latest_conversations')
       .then(res => res.json())
@@ -784,7 +858,6 @@
       container.insertBefore(div, container.firstChild);
     }
 
-    /* Poll for chain title every 2s until found or conversation finished */
     function pollChainTitle() {
       if (!activeChainId) return;
       if (titleInterval) clearInterval(titleInterval);
@@ -794,10 +867,8 @@
         .then(res => res.json())
         .then(data => {
           if (data.title && data.title.trim().length > 0) {
-            // We have a real title
             updateSidebarTitle(activeChainId, data.title);
             document.getElementById("conversation_title").textContent = data.title;
-
             clearInterval(titleInterval);
             titleInterval = null;
           }
@@ -807,10 +878,8 @@
     }
 
     function updateSidebarTitle(chain_id, realTitle) {
-      // find the .conversation-item in the sidebar with data-chain-id=chain_id
       const item = document.querySelector(`.conversation-item[data-chain-id='${chain_id}']`);
       if (item) {
-        // update the text
         const titleDiv = item.querySelector('.conversation-title');
         if (titleDiv) {
           titleDiv.textContent = `${realTitle} | ${chain_id}`;
@@ -887,9 +956,8 @@
         document.getElementById("user_query").value = data.user_query || "";
         document.getElementById("user_query").disabled = true;
 
-        // also see if there's a real title
-        pollChainTitle(); // maybe it updates
         activeChainId = id;
+        pollChainTitle();
         startPlanPolling();
       });
     }
@@ -954,12 +1022,11 @@
 
     /* ---------- PLAN STEPS SIDEBAR LOGIC ---------- */
     function startPlanPolling() {
+      if (!activeChainId) return;
       if (planInterval) clearInterval(planInterval);
-      if (activeChainId) {
-        planInterval = setInterval(fetchPlanSteps, 3000);
-        fetchPlanSteps();
-      }
-      // Also refresh the results for that chain
+      // poll every 2s so steps appear quickly
+      planInterval = setInterval(fetchPlanSteps, 2000);
+      fetchPlanSteps();
       refreshResults();
     }
 
@@ -970,16 +1037,17 @@
       .then(data => {
         if (!data.plan) {
           showAwaitingPlan();
+          lastPlanData = null;
           return;
         }
         const plan = data.plan;
         if (!plan.num_steps) {
           showAwaitingPlan();
+          lastPlanData = plan;
           return;
         }
-        const total = plan.num_steps;
-        const stepsDict = plan.steps || {};
-        renderPlanSteps({ num_steps: total, steps: stepsDict });
+        lastPlanData = plan;
+        renderPlanSteps({ num_steps: plan.num_steps, steps: plan.steps || {} });
       })
       .catch(err => console.error(err));
     }
@@ -995,39 +1063,35 @@
 
       const { num_steps, steps } = dataObj;
       for (let i = 1; i <= num_steps; i++) {
-        let step = steps[i];
-        if (step) {
-          const status = step.status || "pending";
-          const icon = getStepIcon(status);
-          const text = step.step_title || step.elaboration || "... (awaiting details)";
+        const stepDiv = document.createElement('div');
+        stepDiv.className = "plan-step";
+        stepDiv.onclick = () => openStepDetail(i);
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = "plan-step-header";
+
+        const iconSpan = document.createElement('span');
+        iconSpan.className = "step-icon";
+
+        const stepObj = steps[i];
+        if (stepObj) {
+          const status = stepObj.status || "pending";
+          iconSpan.textContent = getStepIcon(status);
+          const text = stepObj.step_title || stepObj.elaboration || "... (awaiting details)";
           const shortText = shortSummary(text, 50);
-
-          const stepDiv = document.createElement('div');
-          stepDiv.className = "plan-step";
-
-          const headerDiv = document.createElement('div');
-          headerDiv.className = "plan-step-header";
-
-          const iconSpan = document.createElement('span');
-          iconSpan.className = "step-icon";
-          iconSpan.textContent = icon;
 
           const titleSpan = document.createElement('span');
           titleSpan.textContent = `Step ${i}) ${shortText}`;
-
           headerDiv.appendChild(iconSpan);
           headerDiv.appendChild(titleSpan);
           stepDiv.appendChild(headerDiv);
 
-          // If elaborating or in_progress, we can show a progress bar.
           if (status === "elaborating" || status === "in_progress") {
-            // Add a bold line e.g. "Elaborating..." or "In progress..."
             const boldLine = document.createElement('div');
             boldLine.style.fontWeight = 'bold';
             boldLine.textContent = (status === "elaborating") ? "Elaborating..." : "In progress...";
             stepDiv.appendChild(boldLine);
 
-            // A moving progress bar below
             const bar = document.createElement('div');
             bar.className = "progress-bar";
             bar.style.height = "6px";
@@ -1046,33 +1110,21 @@
             fill.style.borderRadius = "4px";
             fill.style.animation = "slowTravel 4s linear infinite";
             fill.style.background = (status === "elaborating") ? "#f1c40f" : "#3498db";
-
             bar.appendChild(fill);
             stepDiv.appendChild(bar);
           }
-
-          container.appendChild(stepDiv);
-
         } else {
-          const placeholderDiv = document.createElement('div');
-          placeholderDiv.className = "plan-step";
-
-          const headerDiv = document.createElement('div');
-          headerDiv.className = "plan-step-header";
-
-          const iconSpan = document.createElement('span');
-          iconSpan.className = "step-icon";
+          // placeholder if step i not in plan
           iconSpan.textContent = "🔘";
 
           const titleSpan = document.createElement('span');
           titleSpan.textContent = `Step ${i}) ... (awaiting title)`;
-
           headerDiv.appendChild(iconSpan);
           headerDiv.appendChild(titleSpan);
-          placeholderDiv.appendChild(headerDiv);
-
-          container.appendChild(placeholderDiv);
+          stepDiv.appendChild(headerDiv);
         }
+
+        container.appendChild(stepDiv);
       }
     }
 
@@ -1095,7 +1147,6 @@
 
       headerDiv.appendChild(iconSpan);
       headerDiv.appendChild(titleSpan);
-
       stepDiv.appendChild(headerDiv);
       container.appendChild(stepDiv);
     }
@@ -1105,6 +1156,7 @@
         case "pending":      return "🔘";
         case "in_progress":  return "⏳";
         case "elaborating":  return "⏳"; 
+        case "elaborated":   return "⚪️";
         case "completed":    return "✅";
         default:             return "🔘";
       }
@@ -1116,6 +1168,34 @@
       return txt.substring(0, maxLen-3) + "...";
     }
     /* ---------- END PLAN STEPS SIDEBAR ---------- */
+
+    /* STEP DETAIL POPUP LOGIC */
+    function openStepDetail(stepIndex) {
+      // We'll use the lastPlanData to find this step's elaboration
+      if (!lastPlanData || !lastPlanData.steps || !lastPlanData.steps[stepIndex]) {
+        // fallback: step not available, show basic
+        showStepModal(`Step ${stepIndex}`, "No elaboration available.");
+        return;
+      }
+      const stepObj = lastPlanData.steps[stepIndex];
+      const stepTitle = stepObj.step_title || `Step ${stepIndex}`;
+      const stepElaboration = stepObj.elaboration || "No elaboration yet.";
+      showStepModal(stepTitle, stepElaboration);
+    }
+
+    function showStepModal(title, body) {
+      const overlay = document.getElementById("step_detail_overlay");
+      overlay.classList.add("active");
+      document.getElementById("step_detail_title").textContent = title;
+      document.getElementById("step_detail_body").textContent = body;
+    }
+
+    function closeStepDetail() {
+      const overlay = document.getElementById("step_detail_overlay");
+      overlay.classList.remove("active");
+      document.getElementById("step_detail_title").textContent = "";
+      document.getElementById("step_detail_body").textContent = "";
+    }
 
     function refreshResults() {
       if (!activeChainId) return;
@@ -1140,6 +1220,7 @@
 
     // Poll the chain-specific results folder every 5 seconds
     setInterval(refreshResults, 5000);
+
   </script>
 </body>
 </html>

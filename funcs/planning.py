@@ -234,7 +234,7 @@ def elaborate_on_steps(d):
         d["plan"]["steps"][i]["elaboration"] = step_elaboration
 
         # Set status back to pending
-        d["plan"]["steps"][i]["status"] = "pending"
+        d["plan"]["steps"][i]["status"] = "elaborated"
 
         # Write to database
         update_chains_db(d["id"], "plan", d["plan"])

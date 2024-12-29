@@ -8,6 +8,7 @@ def query_llm(d):
         
         if "gpt-4o" in d["model"]:
                 import openai
+                # Create client object with API key
                 client = openai.OpenAI(api_key=d["api_key"])
 
                 completion = client.chat.completions.create(
@@ -16,8 +17,9 @@ def query_llm(d):
                         "role": "user",
                         "content": d["exe_prompt"]}]
                 )
-
-                output = completion.choices[0].message
+                
+                #print(completion)
+                output = completion.choices[0].message.content
 
 
         else:   
