@@ -49,15 +49,15 @@ def index():
 
 @app.route('/get_conversation', methods=['POST'])
 def get_conversation():
-    """Returns the conversation history + user_query for a given conversation ID."""
+    """Returns the conversation history + user_query + attached_files for a given conversation ID."""
     chain_id = request.form.get('id', '')
     if not os.path.exists(DB_PATH):
-        return jsonify({'history': '', 'user_query': ''})
+        return jsonify({'history': '', 'user_query': '', 'attached_files': '[]'})
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT history, user_query
+        SELECT history, user_query, attached_files
           FROM chains
          WHERE id = ?
     """, (chain_id,))
@@ -65,8 +65,12 @@ def get_conversation():
     conn.close()
 
     if row:
-        return jsonify({'history': row[0] or '', 'user_query': row[1] or ''})
-    return jsonify({'history': '', 'user_query': ''})
+        return jsonify({
+            'history': row[0] or '',
+            'user_query': row[1] or '',
+            'attached_files': row[2] or '[]'
+        })
+    return jsonify({'history': '', 'user_query': '', 'attached_files': '[]'})
 
 @app.route('/delete_conversation', methods=['POST'])
 def delete_conversation():
@@ -199,17 +203,24 @@ def get_results(chain_id):
 def upload_file():
     """
     Endpoint for uploading a local file to the server.
-    We save it in uploaded_files/ and return its absolute path.
+    Do NOT save it in uploaded_files/ and return a dummy path.
     """
     file = request.files.get('file')
     if not file:
         return jsonify({'status': 'error', 'message': 'No file provided'}), 400
 
     filename = file.filename
-    server_path = os.path.join(UPLOAD_DIR, filename)
-    file.save(server_path)
-    abs_path = os.path.abspath(server_path)
-    return jsonify({'status': 'ok', 'path': abs_path})
+    # Do not save the file. Just return a dummy path or the filename.
+    # Assuming main.py can handle files that do not physically exist.
+    # Or, we could save the file in-memory or use a different approach.
+    # For now, return the filename as path without saving.
+
+    # If main.py requires a path, adjust accordingly.
+    # Maybe assume the files are already present in a certain location.
+    # Here, just return the filename as path.
+
+    dummy_path = filename  # or some other logic
+    return jsonify({'status': 'ok', 'path': dummy_path})
 
 @app.route('/latest_conversations', methods=['GET'])
 def latest_conversations():

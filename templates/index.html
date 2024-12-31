@@ -205,7 +205,7 @@
     margin-bottom: 10px;
   }
 
-  /* FILE ATTACHMENTS (VISIBLE) */
+  /* FILE ATTACHMENTS */
   .file-attachments {
     margin-bottom: 10px;
     display: flex; 
@@ -242,6 +242,16 @@
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 0.8em;
+  }
+
+  /* STATIC FILES */
+  .static-file {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .static-file span {
+    font-size: 0.9em;
+    color: #555;
   }
 
   /* SPLIT VIEW (OUTPUT + RESULTS) */
@@ -573,10 +583,21 @@
         <div class="timer">Time running: <span id="timer_value">00:00:00</span></div>
       </div>
 
-      <!-- File Attachments (visible) -->
+      <!-- OVERALL PROGRESS INDICATOR -->
+      <div class="overall-progress">
+        <div class="progress-info">
+          <span id="progress_pct">0%</span>
+          <span id="progress_stage">Not started</span>
+        </div>
+        <div class="overall-progress-bar" id="overall_progress_bar">
+          <div class="overall-progress-fill" id="overall_progress_fill"></div>
+        </div>
+      </div>
+
+      <!-- File Attachments (editable or static) -->
       <div class="file-attachments">
         <div class="file-attachments-header">
-          <button onclick="triggerFileSelect()">Add File</button>
+          <button id="add_file_btn" onclick="triggerFileSelect()">Add File</button>
           <input type="file" id="file_input" style="display:none;" onchange="uploadSelectedFile(event)">
         </div>
         <div id="attached_files_container"></div>
@@ -588,19 +609,6 @@
         <div class="results-box">
           <h4>Results</h4>
           <ul class="results-list" id="results_list"></ul>
-        </div>
-      </div>
-
-      <!-- OVERALL PROGRESS INDICATOR -->
-      <div class="overall-progress">
-        <div class="progress-info">
-          <span id="progress_pct">0%</span>
-          <span id="progress_stage">Not started</span>
-        </div>
-        <div class="progress-bar-container">
-          <div class="overall-progress-bar" id="overall_progress_bar">
-            <div class="overall-progress-fill" id="overall_progress_fill"></div>
-          </div>
         </div>
       </div>
 
@@ -675,6 +683,7 @@
 
       initialConversations = getCurrentConversationIds();
       updateStartButtonLabel();
+      setFileAttachmentsEditable(true); // Initially editable
     });
 
     function updateStartButtonLabel() {
@@ -706,6 +715,9 @@
 
       // Also reset progress indicators
       resetProgressIndicators();
+
+      // Set file attachments to editable
+      setFileAttachmentsEditable(true);
     }
 
     function resetProgressIndicators() {
@@ -755,7 +767,7 @@
           const serverPath = data.path;
           attachedFiles.push({
             id: fileId,
-            path: serverPath, // full path to pass to main.py
+            path: serverPath, // path as returned by server (dummy path)
             displayName: displayName, // display only filename
             description: ''
           });
@@ -773,8 +785,8 @@
     }
 
     function renderAttachedFiles() {
-      const container = document.getElementById('attached_files_container');
-      container.innerHTML = "";
+      const attachedFilesContainer = document.getElementById('attached_files_container');
+      attachedFilesContainer.innerHTML = "";
       attachedFiles.forEach(fileObj => {
         const div = document.createElement('div');
         div.className = 'file-item';
@@ -799,8 +811,102 @@
         div.appendChild(fileNameSpan);
         div.appendChild(descInput);
         div.appendChild(removeBtn);
-        container.appendChild(div);
+        attachedFilesContainer.appendChild(div);
       });
+
+      // Adjust scroll if more than 2 files
+      if (attachedFiles.length > 2) {
+        attachedFilesContainer.style.maxHeight = '100px'; // Adjust as needed
+        attachedFilesContainer.style.overflowY = 'auto';
+      } else {
+        attachedFilesContainer.style.maxHeight = 'none';
+        attachedFilesContainer.style.overflowY = 'visible';
+      }
+    }
+
+    function setFileAttachmentsEditable(isEditable) {
+      const addButton = document.getElementById('add_file_btn');
+      const attachedFilesContainer = document.getElementById('attached_files_container');
+
+      if (isEditable) {
+        addButton.style.display = 'inline-block';
+        attachedFilesContainer.innerHTML = '';
+        attachedFiles.forEach(fileObj => {
+          const div = document.createElement('div');
+          div.className = 'file-item';
+
+          const fileNameSpan = document.createElement('span');
+          fileNameSpan.textContent = fileObj.displayName;
+
+          const descInput = document.createElement('input');
+          descInput.type = 'text';
+          descInput.placeholder = 'Description (optional)';
+          descInput.value = fileObj.description;
+          descInput.oninput = () => fileObj.description = descInput.value;
+
+          const removeBtn = document.createElement('button');
+          removeBtn.textContent = 'Remove';
+          removeBtn.className = 'remove-file';
+          removeBtn.onclick = () => {
+            attachedFiles = attachedFiles.filter(f => f.id !== fileObj.id);
+            renderAttachedFiles();
+          };
+
+          div.appendChild(fileNameSpan);
+          div.appendChild(descInput);
+          div.appendChild(removeBtn);
+          attachedFilesContainer.appendChild(div);
+        });
+
+        // Adjust scroll if more than 2 files
+        if (attachedFiles.length > 2) {
+          attachedFilesContainer.style.maxHeight = '100px'; // Adjust as needed
+          attachedFilesContainer.style.overflowY = 'auto';
+        } else {
+          attachedFilesContainer.style.maxHeight = 'none';
+          attachedFilesContainer.style.overflowY = 'visible';
+        }
+      } else {
+        addButton.style.display = 'none';
+        attachedFilesContainer.innerHTML = '';
+
+        if (attachedFiles.length > 0) {
+          const mergedDiv = document.createElement('div');
+          mergedDiv.className = 'file-item static-file';
+
+          attachedFiles.forEach(fileObj => {
+            const fileLine = document.createElement('div');
+            fileLine.style.marginBottom = '4px'; // spacing between lines
+            const fileNameSpan = document.createElement('span');
+            fileNameSpan.textContent = fileObj.displayName;
+
+            const descSpan = document.createElement('span');
+            descSpan.textContent = fileObj.description ? ` - ${fileObj.description}` : '';
+
+            fileLine.appendChild(fileNameSpan);
+            fileLine.appendChild(descSpan);
+            mergedDiv.appendChild(fileLine);
+          });
+
+          attachedFilesContainer.appendChild(mergedDiv);
+
+          if (attachedFiles.length > 2) {
+            attachedFilesContainer.style.maxHeight = '100px'; // Adjust as needed
+            attachedFilesContainer.style.overflowY = 'auto';
+          } else {
+            attachedFilesContainer.style.maxHeight = 'none';
+            attachedFilesContainer.style.overflowY = 'visible';
+          }
+        } else {
+          // If no files attached and browsing a historical agent, reduce gap
+          const noFilesDiv = document.createElement('div');
+          noFilesDiv.style.fontSize = '0.9em';
+          noFilesDiv.style.color = '#aaa';
+          noFilesDiv.style.margin = '2px 0'; // Reduced gap
+          noFilesDiv.textContent = "No files attached.";
+          attachedFilesContainer.appendChild(noFilesDiv);
+        }
+      }
     }
 
     function startAgent() {
@@ -909,12 +1015,15 @@
         for (let c of convs) {
           if (!initialConversations.includes(String(c.id)) && !currentIds.includes(String(c.id))) {
             const nowStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            addConversationToSidebar(c.id, New chat ${nowStr}, true);
+            addConversationToSidebar(c.id, `New chat ${nowStr}`, true);
             initialConversations.push(String(c.id));
             activeChainId = c.id;
             startPlanPolling(); // start fetching steps frequently
             pollChainTitle();   // start fetching title frequently
             foundNew = true;
+
+            // Fetch and set attached files for the new conversation
+            fetchAttachedFiles(c.id);
           }
         }
         if (foundNew) {
@@ -933,7 +1042,7 @@
 
       const titleDiv = document.createElement('div');
       titleDiv.className = 'conversation-title';
-      titleDiv.textContent = ${title} | ${chain_id};
+      titleDiv.textContent = `${title} | ${chain_id}`;
       titleDiv.onclick = () => {
         loadConversation(chain_id);
         activeChainId = chain_id;
@@ -957,13 +1066,39 @@
       container.insertBefore(div, container.firstChild);
     }
 
+    function fetchAttachedFiles(chain_id) {
+      fetch("/get_conversation", {
+        method: "POST",
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({id: chain_id})
+      })
+      .then(response => response.json())
+      .then(data => {
+        const attachedFilesData = JSON.parse(data.attached_files);
+        attachedFiles = attachedFilesData.map((file, index) => ({
+          id: `static_${index}_${Date.now()}`,
+          path: file.path,
+          displayName: getFileName(file.path),
+          description: file.description || ''
+        }));
+        setFileAttachmentsEditable(false); // Set to read-only
+      })
+      .catch(err => {
+        console.error('Error fetching attached files:', err);
+      });
+    }
+
+    function getFileName(fullPath) {
+      return fullPath.split('\\').pop().split('/').pop();
+    }
+
     /* Increase poll frequency for conversation title to 1s instead of 2s. */
     function pollChainTitle() {
       if (!activeChainId) return;
       if (titleInterval) clearInterval(titleInterval);
 
       titleInterval = setInterval(() => {
-        fetch(/get_title?chain_id=${activeChainId})
+        fetch(`/get_title?chain_id=${activeChainId}`)
         .then(res => res.json())
         .then(data => {
           if (data.title && data.title.trim().length > 0) {
@@ -978,11 +1113,11 @@
     }
 
     function updateSidebarTitle(chain_id, realTitle) {
-      const item = document.querySelector(.conversation-item[data-chain-id='${chain_id}']);
+      const item = document.querySelector(`.conversation-item[data-chain-id='${chain_id}']`);
       if (item) {
         const titleDiv = item.querySelector('.conversation-title');
         if (titleDiv) {
-          titleDiv.textContent = ${realTitle} | ${chain_id};
+          titleDiv.textContent = `${realTitle} | ${chain_id}`;
         }
       }
     }
@@ -1066,6 +1201,16 @@
         pollChainTitle(); 
         startPlanPolling();
 
+        // Fetch and display attached files statically
+        const attachedFilesData = JSON.parse(data.attached_files);
+        attachedFiles = attachedFilesData.map((file, index) => ({
+          id: `static_${index}_${Date.now()}`,
+          path: file.path,
+          displayName: getFileName(file.path),
+          description: file.description || ''
+        }));
+        setFileAttachmentsEditable(false); // Set to read-only
+
         // Start polling progress when a conversation is loaded
         if (progressInterval) clearInterval(progressInterval);
         progressInterval = setInterval(fetchProgress, 2000);
@@ -1100,7 +1245,7 @@
       .then(res => res.json())
       .then(data => {
         if (data.status === "deleted") {
-          const item = document.querySelector(.conversation-item[data-chain-id='${chainIdToDelete}']);
+          const item = document.querySelector(`.conversation-item[data-chain-id='${chainIdToDelete}']`);
           if (item) item.remove();
           initialConversations = initialConversations.filter(cid => cid !== String(chainIdToDelete));
           if (activeChainId === chainIdToDelete) {
@@ -1131,7 +1276,7 @@
       const mm = String(mins).padStart(2, '0');
       const ss = String(secs).padStart(2, '0');
 
-      document.getElementById("timer_value").textContent = ${hh}:${mm}:${ss};
+      document.getElementById("timer_value").textContent = `${hh}:${mm}:${ss}`;
     }
 
     /* ---------- PLAN STEPS SIDEBAR LOGIC ---------- */
@@ -1147,7 +1292,7 @@
 
     function fetchPlanSteps() {
       if (!activeChainId) return;
-      fetch(/get_plan?chain_id=${activeChainId})
+      fetch(`/get_plan?chain_id=${activeChainId}`)
       .then(res => res.json())
       .then(data => {
         if (!data.plan) {
@@ -1168,7 +1313,7 @@
     }
 
     function showAwaitingPlan() {
-      document.getElementById('plan_steps_container').innerHTML = <div class="awaiting-plan">Awaiting plan...</div>;
+      document.getElementById('plan_steps_container').innerHTML = `<div class="awaiting-plan">Awaiting plan...</div>`;
     }
 
     function renderPlanSteps(dataObj) {
@@ -1196,7 +1341,7 @@
           const shortText = shortSummary(text, 50);
 
           const titleSpan = document.createElement('span');
-          titleSpan.textContent = Step ${i}) ${shortText};
+          titleSpan.textContent = `Step ${i}) ${shortText}`;
           headerDiv.appendChild(iconSpan);
           headerDiv.appendChild(titleSpan);
           stepDiv.appendChild(headerDiv);
@@ -1233,7 +1378,7 @@
           // placeholder step
           iconSpan.textContent = "🔘";
           const titleSpan = document.createElement('span');
-          titleSpan.textContent = Step ${i}) ... (awaiting title);
+          titleSpan.textContent = `Step ${i}) ... (awaiting title)`;
           headerDiv.appendChild(iconSpan);
           headerDiv.appendChild(titleSpan);
           stepDiv.appendChild(headerDiv);
@@ -1285,11 +1430,11 @@
     /* STEP DETAIL POPUP LOGIC */
     function openStepDetail(stepIndex) {
       if (!lastPlanData || !lastPlanData.steps || !lastPlanData.steps[stepIndex]) {
-        showStepModal(Step ${stepIndex}, "No elaboration available.");
+        showStepModal(`Step ${stepIndex}`, "No elaboration available.");
         return;
       }
       const stepObj = lastPlanData.steps[stepIndex];
-      const stepTitle = stepObj.step_title || Step ${stepIndex};
+      const stepTitle = stepObj.step_title || `Step ${stepIndex}`;
       const stepElaboration = stepObj.elaboration || "";
 
       const bodyText = stepElaboration ? stepElaboration : "No elaboration yet.";
@@ -1313,7 +1458,7 @@
     /* RESULTS POLLING */
     function refreshResults() {
       if (!activeChainId) return;
-      fetch(/get_results/${activeChainId})
+      fetch(`/get_results/${activeChainId}`)
       .then(res => res.json())
       .then(files => {
         const list = document.getElementById("results_list");
@@ -1338,20 +1483,109 @@
     /* PROGRESS POLLING LOGIC */
     function fetchProgress() {
       if (!activeChainId) return;
-      fetch(/get_progress?chain_id=${activeChainId})
+      fetch(`/get_progress?chain_id=${activeChainId}`)
       .then(res => res.json())
       .then(data => {
         const pct = data.progress_pct;
         const stage = data.progress_stage;
 
-        document.getElementById("progress_pct").textContent = ${pct}%;
+        document.getElementById("progress_pct").textContent = `${pct}%`;
         document.getElementById("progress_stage").textContent = stage || "Not started";
 
         // Update the progress bar width
         const progressFill = document.getElementById("overall_progress_fill");
-        progressFill.style.width = ${pct}%;
+        progressFill.style.width = `${pct}%`;
       })
       .catch(err => console.error(err));
+    }
+
+    // Poll the overall progress every 2 seconds
+    // Already handled by fetchProgress being called every 2 seconds
+
+    /* Set File Attachments Editable or Read-Only */
+    function setFileAttachmentsEditable(isEditable) {
+      const addButton = document.getElementById('add_file_btn');
+      const attachedFilesContainer = document.getElementById('attached_files_container');
+
+      if (isEditable) {
+        addButton.style.display = 'inline-block';
+        attachedFilesContainer.innerHTML = '';
+        attachedFiles.forEach(fileObj => {
+          const div = document.createElement('div');
+          div.className = 'file-item';
+
+          const fileNameSpan = document.createElement('span');
+          fileNameSpan.textContent = fileObj.displayName;
+
+          const descInput = document.createElement('input');
+          descInput.type = 'text';
+          descInput.placeholder = 'Description (optional)';
+          descInput.value = fileObj.description;
+          descInput.oninput = () => fileObj.description = descInput.value;
+
+          const removeBtn = document.createElement('button');
+          removeBtn.textContent = 'Remove';
+          removeBtn.className = 'remove-file';
+          removeBtn.onclick = () => {
+            attachedFiles = attachedFiles.filter(f => f.id !== fileObj.id);
+            renderAttachedFiles();
+          };
+
+          div.appendChild(fileNameSpan);
+          div.appendChild(descInput);
+          div.appendChild(removeBtn);
+          attachedFilesContainer.appendChild(div);
+        });
+
+        // Adjust scroll if more than 2 files
+        if (attachedFiles.length > 2) {
+          attachedFilesContainer.style.maxHeight = '100px'; // Adjust as needed
+          attachedFilesContainer.style.overflowY = 'auto';
+        } else {
+          attachedFilesContainer.style.maxHeight = 'none';
+          attachedFilesContainer.style.overflowY = 'visible';
+        }
+      } else {
+        addButton.style.display = 'none';
+        attachedFilesContainer.innerHTML = '';
+
+        if (attachedFiles.length > 0) {
+          const mergedDiv = document.createElement('div');
+          mergedDiv.className = 'file-item static-file';
+
+          attachedFiles.forEach(fileObj => {
+            const fileLine = document.createElement('div');
+            fileLine.style.marginBottom = '4px'; // spacing between lines
+            const fileNameSpan = document.createElement('span');
+            fileNameSpan.textContent = fileObj.displayName;
+
+            const descSpan = document.createElement('span');
+            descSpan.textContent = fileObj.description ? ` - ${fileObj.description}` : '';
+
+            fileLine.appendChild(fileNameSpan);
+            fileLine.appendChild(descSpan);
+            mergedDiv.appendChild(fileLine);
+          });
+
+          attachedFilesContainer.appendChild(mergedDiv);
+
+          if (attachedFiles.length > 2) {
+            attachedFilesContainer.style.maxHeight = '100px'; // Adjust as needed
+            attachedFilesContainer.style.overflowY = 'auto';
+          } else {
+            attachedFilesContainer.style.maxHeight = 'none';
+            attachedFilesContainer.style.overflowY = 'visible';
+          }
+        } else {
+          // If no files attached and browsing a historical agent, reduce gap
+          const noFilesDiv = document.createElement('div');
+          noFilesDiv.style.fontSize = '0.9em';
+          noFilesDiv.style.color = '#aaa';
+          noFilesDiv.style.margin = '2px 0'; // Reduced gap
+          noFilesDiv.textContent = "No files attached.";
+          attachedFilesContainer.appendChild(noFilesDiv);
+        }
+      }
     }
   </script>
 </body>
