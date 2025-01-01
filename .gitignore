@@ -1,3 +1,5 @@
 db/main.db
 *.pyc
 output.txt
+uploads/
+upload/

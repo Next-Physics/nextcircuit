@@ -4,17 +4,31 @@ import subprocess
 import signal
 import ast
 import json
+import shutil
 from flask import Flask, render_template, request, jsonify, Response
 
 app = Flask(__name__)
 
 DB_PATH = 'db/main.db'
-UPLOAD_DIR = 'uploaded_files'
+UPLOAD_DIR = 'upload'  # Where we'll store temp and final uploads
 RESULTS_DIR = 'results'  # Root results directory
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 running_process = None
+
+def get_latest_chain_id():
+    """Fetches the latest chain_id from the DB."""
+    if not os.path.exists(DB_PATH):
+        return None
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM chains ORDER BY id DESC LIMIT 1")
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return row[0]
+    return None
 
 def get_conversations():
     """Fetches existing conversations from the DB."""
@@ -22,7 +36,6 @@ def get_conversations():
         return []
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # Assuming there's a user_query and plan columns in the chains table
     cursor.execute("""
         SELECT id, chain_title, history, chain_last_modified, user_query
           FROM chains
@@ -74,7 +87,7 @@ def get_conversation():
 
 @app.route('/delete_conversation', methods=['POST'])
 def delete_conversation():
-    """Deletes a conversation from the DB, plus any associated results folder."""
+    """Deletes a conversation from the DB, plus any associated upload and results folders."""
     chain_id = request.form.get('id', '')
     if not chain_id:
         return jsonify({'status': 'error', 'message': 'No id provided'})
@@ -82,11 +95,14 @@ def delete_conversation():
         return jsonify({'status': 'error', 'message': 'Database not found'})
 
     # Remove the folder results/<chain_id> if it exists.
-    # Ensure that only the specific subfolder is deleted.
-    results_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), RESULTS_DIR, chain_id))
+    results_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), RESULTS_DIR, str(chain_id)))
     if os.path.exists(results_dir) and os.path.isdir(results_dir):
-        import shutil
         shutil.rmtree(results_dir, ignore_errors=True)
+
+    # Remove the folder upload/<chain_id> if it exists.
+    upload_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), UPLOAD_DIR, str(chain_id)))
+    if os.path.exists(upload_dir) and os.path.isdir(upload_dir):
+        shutil.rmtree(upload_dir, ignore_errors=True)
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -95,6 +111,61 @@ def delete_conversation():
     conn.close()
 
     return jsonify({'status': 'deleted'})
+
+@app.route('/upload_file', methods=['POST'])
+def upload_file():
+    """
+    Endpoint for uploading a local file to the server.
+    If no chain exists yet, we temporarily store them under upload/None/.
+    Otherwise, we store in upload/<latest_chain_id>/.
+    """
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'status': 'error', 'message': 'No file provided'}), 400
+
+    # Figure out if we have a chain_id from the database
+    # If not, put the files in upload/None
+    latest_chain_id = get_latest_chain_id()
+    if not latest_chain_id:
+        chain_for_upload = 'None'
+    else:
+        chain_for_upload = str(latest_chain_id)
+
+    chain_upload_dir = os.path.join(UPLOAD_DIR, chain_for_upload)
+    os.makedirs(chain_upload_dir, exist_ok=True)
+
+    filename = file.filename
+    # Very basic sanitization
+    secure_filename = filename.replace('/', '_').replace('\\', '_')
+    save_path = os.path.join(chain_upload_dir, secure_filename)
+
+    try:
+        file.save(save_path)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to save file: {str(e)}'}), 500
+
+    # We return only the sanitized filename
+    return jsonify({'status': 'ok', 'path': secure_filename})
+
+@app.route('/rename_upload_folder', methods=['POST'])
+def rename_upload_folder():
+    """
+    Rename the folder 'None' to an actual chain ID once the DB is created 
+    and a new chain is detected.
+    """
+    old_folder = request.form.get('old_folder', '')
+    new_folder = request.form.get('new_folder', '')
+    if not old_folder or not new_folder or old_folder == new_folder:
+        return jsonify({'status': 'nop'})  # no operation needed
+
+    old_dir = os.path.join(UPLOAD_DIR, old_folder)
+    new_dir = os.path.join(UPLOAD_DIR, new_folder)
+
+    if os.path.exists(old_dir) and os.path.isdir(old_dir):
+        # Move/rename the entire folder
+        shutil.move(old_dir, new_dir)
+
+    return jsonify({'status': 'ok'})
 
 @app.route('/run_agent')
 def run_agent():
@@ -119,7 +190,7 @@ def run_agent():
         import subprocess
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
-    # Build the command based on the selected mode
+    # Build the command
     cmd = [
         'python', '-u', 'main.py',
         '--query', user_query,
@@ -166,14 +237,9 @@ def stop_agent():
 
 @app.route('/get_title', methods=['GET'])
 def get_title():
-    """
-    Returns chain_title from chains for a given chain_id.
-    If chain_title is NULL or empty, returns empty string.
-    """
+    """Returns chain_title from chains for a given chain_id."""
     chain_id = request.args.get('chain_id', '')
-    if not chain_id:
-        return jsonify({'title': ''})
-    if not os.path.exists(DB_PATH):
+    if not chain_id or not os.path.exists(DB_PATH):
         return jsonify({'title': ''})
 
     conn = sqlite3.connect(DB_PATH)
@@ -192,35 +258,12 @@ def get_results(chain_id):
     Lists all files in results/<chain_id>/ directory.
     If it doesn't exist, return empty list.
     """
-    results_dir = os.path.join(RESULTS_DIR, chain_id)
+    results_dir = os.path.join(RESULTS_DIR, str(chain_id))
     if not os.path.exists(results_dir) or not os.path.isdir(results_dir):
         return jsonify([])
 
     files = [f for f in os.listdir(results_dir) if os.path.isfile(os.path.join(results_dir, f))]
     return jsonify(files)
-
-@app.route('/upload_file', methods=['POST'])
-def upload_file():
-    """
-    Endpoint for uploading a local file to the server.
-    Do NOT save it in uploaded_files/ and return a dummy path.
-    """
-    file = request.files.get('file')
-    if not file:
-        return jsonify({'status': 'error', 'message': 'No file provided'}), 400
-
-    filename = file.filename
-    # Do not save the file. Just return a dummy path or the filename.
-    # Assuming main.py can handle files that do not physically exist.
-    # Or, we could save the file in-memory or use a different approach.
-    # For now, return the filename as path without saving.
-
-    # If main.py requires a path, adjust accordingly.
-    # Maybe assume the files are already present in a certain location.
-    # Here, just return the filename as path.
-
-    dummy_path = filename  # or some other logic
-    return jsonify({'status': 'ok', 'path': dummy_path})
 
 @app.route('/latest_conversations', methods=['GET'])
 def latest_conversations():
@@ -232,12 +275,10 @@ def latest_conversations():
 def get_plan():
     """
     Returns the plan stored in 'chains.plan' for a given chain_id.
-    If the plan is stored in a Pythonic format, we parse with ast.literal_eval -> JSON.
+    If the plan is stored in Pythonic format, parse with ast.literal_eval -> JSON.
     """
     chain_id = request.args.get('chain_id', '')
-    if not chain_id:
-        return jsonify({'plan': None})
-    if not os.path.exists(DB_PATH):
+    if not chain_id or not os.path.exists(DB_PATH):
         return jsonify({'plan': None})
 
     conn = sqlite3.connect(DB_PATH)
@@ -247,7 +288,6 @@ def get_plan():
     conn.close()
 
     if not row or not row[0]:
-        # No plan stored
         return jsonify({'plan': None})
 
     plan_data_raw = row[0]
@@ -257,7 +297,7 @@ def get_plan():
         try:
             plan_dict = json.loads(plan_data_raw)
         except (json.JSONDecodeError, TypeError):
-            # if that fails, try ast.literal_eval
+            # fallback to literal_eval
             try:
                 maybe_py = ast.literal_eval(plan_data_raw)
                 if isinstance(maybe_py, dict):
@@ -266,16 +306,13 @@ def get_plan():
                     plan_dict = None
             except:
                 plan_dict = None
-    # If not a string, do nothing
     return jsonify({'plan': plan_dict})
 
 @app.route('/get_progress', methods=['GET'])
 def get_progress():
     """Returns progress_pct and progress_stage for a given chain_id."""
     chain_id = request.args.get('chain_id', '')
-    if not chain_id:
-        return jsonify({'progress_pct': 0, 'progress_stage': ''})
-    if not os.path.exists(DB_PATH):
+    if not chain_id or not os.path.exists(DB_PATH):
         return jsonify({'progress_pct': 0, 'progress_stage': ''})
 
     conn = sqlite3.connect(DB_PATH)
