@@ -209,7 +209,9 @@ def elaborate_on_steps(d):
         print(f"\n--------------------------Elaborating on Step {i}---------------------------")
 
         d["exe_prompt"] = f"""
-        Given the following user query/request:
+        You are an expert in understanding and elaborating on plans.
+
+        Given the following overview of a plan made in order to achieve a goal:
 
         '{d['prompt']}'
 
@@ -219,76 +221,56 @@ def elaborate_on_steps(d):
 
         Your elaboration for **Step {i}** should include:
 
-        1. **Provide Concrete Actions**
-        - Detail a clear, step-by-step procedure that can be carried out autonomously by the LLM agent.
-        - Each sub-step should directly contribute to achieving the final goal.
+        - Detail a clear, procedure that can be carried out autonomously by the LLM agent.
+        - Each sub-step should directly contribute to achieving the final goal and link well to the prior and later steps in the plan.
         - If any tools, data, or environment setups are required, specify precisely how to acquire or generate them.
-
-        2. **Supply Real Executable Code or Commands**
         - Include all necessary code or commands to achieve the actions, enclosed in fenced code blocks (e.g., ```python, ```bash).
         - The code must be immediately runnable **as-is**, with no placeholders such as `SOME_VARIABLE` or `YOUR_DATASET.csv`.
         - If external data is required, show how to obtain or simulate that data within the code itself (e.g., generating dummy data or including explicit file paths/instructions).
-
-        3. **Avoid Hypothetical Examples and Placeholders**
         - Do **not** provide pseudo-code, incomplete samples, or fictional placeholders.
-        - If you require additional data or context, explicitly state that requirement and demonstrate how to handle it (e.g., “ask the user for file X” or “use the LLM to parse text from [source]”).
-
-        4. **Correct Code Fencing and Language Identifiers**
+        - If you require additional data or context, explicitly state that requirement and demonstrate how to handle it (e.g. or “use the LLM to parse text from [source]”) by providing the necessary code.
         - Use appropriate language identifiers after the opening triple backticks (like ```python or ```bash).
         - Inside these fenced code blocks, include **only** the commands or code—no commentary.
-
-        5. **Foolproof and Goal-Oriented Instructions**
         - Think critically: your instructions should handle edge cases or potential errors if relevant.
         - If the step involves searching for information, explain exactly how the LLM would perform that search (e.g., “Use the local search function with these keywords” or “Prompt the user to supply a reference document”).
         - Do not assume hidden capabilities. If a required action is not feasible for an LLM agent, propose a workaround or an alternative approach.
-
-        6. **Leverage Existing Tools and Libraries**
         - Where possible, use well-known libraries, frameworks, or modules to accomplish tasks (e.g., NumPy for numerical operations, Hugging Face Transformers for advanced NLP, etc.).
         - Refrain from custom-coding solutions if an established method is readily available.
-
-        7. **Integration with `query_llm` Function**
         - If a sub-step calls for advanced text processing, data analysis, or further decomposition, show exactly how to call your custom `query_llm` function with a well-structured query.
         - Demonstrate this by including lines of code like:
-
             ```python
             d["exe_prompt"] = "Your extended request or instructions here"
             answer = query_llm(d)
             ```
-
-        8. **No Unnecessary Commentary in Code Blocks**
         - Keep extraneous explanations outside of code blocks.
         - The main text may include rationale or clarifications, but the code blocks themselves should remain strictly executable commands/code.
-
-        9. **Human Interaction**
         - If human-level communication is needed, provide precise, empathetic, and persuasive messages or prompts.
         - Clearly denote the communication steps (e.g., “Prompt the user with the following question: …”).
-
-        10. **Acknowledging Limitations**
-            - If something is impossible given an LLM’s constraints, state it clearly and propose a practical workaround.
-            - Do not attempt tasks requiring real-time physical world interactions or paid APIs unless absolutely necessary; if needed, explicitly justify why.
-
-        Remember:
+        - If something is impossible given an LLM’s constraints, state it clearly and propose a practical workaround.
+        - Do not attempt tasks requiring real-time physical world interactions or paid APIs unless absolutely necessary; if needed, explicitly justify why.
         - Think critically and deeply about the step to ensure it is foolproof.
         - Do not make assumptions; if a step requires specific information to make sense or be fulfilled, expand the step with a task for local or online searching.
         - Be determined and persistent in solving the problem, exploring alternative methods if necessary.
         - Refrain from reinventing the wheel; use popular existing & widely adopted tools and methods where obviously possible (object detection, text summarization, etc).
-        - You can always extend your knowledge by talking with an LLM in Python by assigning your full query to `d["exe_prompt"]` and get your answer like so:
-
-        ```python
-        answer = query_llm(d)
-
-            The query_llm function DOES NOT have direct access to the internet, so you need to provide the necessary information as part of the query.
-            Refrain from using old traditional NLP methods when analyzing retrieved/downloaded content; instead, use the query_llm() function.
-            Refrain from using paid APIs unless they are absolutely necessary.
-            Ensure you don't accidentally mix up, for example, Python and Bash commands in the same code block unless it is designed to specifically work together.
-            Know your limitations as an LLM agent and don't try to do things that are impossible for an LLM agent to do; instead, find a genius workaround.
-            The final output must enable an agent (or developer) to immediately perform or test the described actions.
-            Avoid placeholders or vague references. Use dummy or illustrative data if real data is unavailable.
+        - You can always extend your knowledge by talking with an LLM in Python by assigning your full query to `d["exe_prompt"]` and get your answer like so: answer = query_llm(d)
+        - The query_llm function itself DOES NOT have direct access to the internet, so you need to provide the necessary information as part of the query by scraping the web first.
+        - Refrain from using old traditional NLP methods when analyzing retrieved/downloaded content; instead, use the query_llm() function.
+        - Refrain from using paid APIs unless they are absolutely necessary.
+        - Ensure you don't accidentally mix up, for example, Python and Bash commands in the same code block unless it is designed to specifically work together.
+        - Know your limitations as an LLM agent and don't try to do things that are impossible for an LLM agent to do; instead, find a genius workaround.
+        - The final output must enable an agent (or developer) to immediately perform or test the described actions.
+        - Avoid placeholders or vague references. Use dummy or illustrative data if real data is unavailable.
+        - When saving results to files in the results folder ensure these feeds appropriately into subsequent steps.
 
         """
 
 
         # Elaborate on step
+
+        print("ABOUT TO RUN THIS QUERY")
+        print(d["exe_prompt"])
+        print("___________________________________DONE_____________________________________________")
+
         step_elaboration = query_llm(d)
 
         # Update status to "elaborated"
