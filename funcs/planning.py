@@ -84,7 +84,7 @@ def propose_step_by_step_plan(d):
 
     {d['prompt']}
 
-    The plan must be suitable for an autonomous LLM agent to execute WITHOUT human input from start to finish.
+    The plan must be suitable for an autonomous LLM agent to fully execute WITHOUT human input from start to finish.
     The plan should result in the goal being achieved, even if it requires changes & interactions in the physical world.
     Find the path of least resistance to achieve the goal (if the end results is 100% the same you may modify exclude, modify or add particular points mentioned by the user).
     Evaluate complexity, can the goal be achieved with a single step? If not provide a detailed step-by-step plan.
@@ -150,32 +150,49 @@ def propose_step_by_step_plan(d):
 
 
 
+
 def extract_step_titles(d):
 
-    print("Extracting steps...")
+    print("Extracting steps titles...")
     # Initialize 'steps' if it doesn't exist
     if "steps" not in d["plan"]:
         d["plan"]["steps"] = {}
 
-    # Loop through each step
+   
+    # Attempt to split the overview into steps using python logic
+    try:
+        pre_split = d["plan"]["overview"].split("**Step",1000)
+    except:
+        pass
+
+    # Extract step titles
     for i in range(1, d["plan"]["num_steps"] + 1):
-        d["exe_prompt"] = f""" You are an expert at text extract. Please extract the title of step {i} of the following plan:
 
-        '{d['plan']['overview']}'
+        # Extract step title using python logic
+        try:
+            step_title = pre_split[i].split("**")[0].split(":")[1].strip()
 
-        You should remove the ** Chareters along with the step number and return the TITLE of the step.
+        # If python logic fails, prompt the LLM to extract the step title
+        except:
 
-        What is the extracted step title of step {i}? Return only the extracted step title text only.
+            d["exe_prompt"] = f""" You are an expert at text extract. Please extract the title of step {i} of the following plan:
 
-        """
+            '{d['plan']['overview']}'
 
-        step_title = query_llm(d)
+            You should remove the ** Chareters along with the step number and return the TITLE of the step.
+
+            What is the extracted step title of step {i}? Return only the extracted step title text only.
+
+            """
+
+            step_title = query_llm(d)
 
 
         d["plan"]["steps"][i] = {
             "step_title": step_title,
             "status": "pending"
             }
+
 
         # Write to database
         update_chains_db(d["id"], "plan", d["plan"])
@@ -202,30 +219,74 @@ def elaborate_on_steps(d):
 
         Your elaboration for **Step {i}** should include:
 
-        - A concise description of the all actions required, ensuring it can be carried out autonomously by the LLM agent and directly contribute towards achieving the goal.
-        - Provide all full necessary code or commands, enclosed in markdown code blocks.
-        - Provide real executable code - don't provide hypothetical examples
-        - Language identifiers after the opening triple backticks in code blocks (e.g., ```python, ```bash).
-        - Ensure that code blocks contain only the code or commands to be executed.
-        - An answer that makes sense and is relevant to the step (no nonsensical outputs).
+        1. **Provide Concrete Actions**
+        - Detail a clear, step-by-step procedure that can be carried out autonomously by the LLM agent.
+        - Each sub-step should directly contribute to achieving the final goal.
+        - If any tools, data, or environment setups are required, specify precisely how to acquire or generate them.
+
+        2. **Supply Real Executable Code or Commands**
+        - Include all necessary code or commands to achieve the actions, enclosed in fenced code blocks (e.g., ```python, ```bash).
+        - The code must be immediately runnable **as-is**, with no placeholders such as `SOME_VARIABLE` or `YOUR_DATASET.csv`.
+        - If external data is required, show how to obtain or simulate that data within the code itself (e.g., generating dummy data or including explicit file paths/instructions).
+
+        3. **Avoid Hypothetical Examples and Placeholders**
+        - Do **not** provide pseudo-code, incomplete samples, or fictional placeholders.
+        - If you require additional data or context, explicitly state that requirement and demonstrate how to handle it (e.g., “ask the user for file X” or “use the LLM to parse text from [source]”).
+
+        4. **Correct Code Fencing and Language Identifiers**
+        - Use appropriate language identifiers after the opening triple backticks (like ```python or ```bash).
+        - Inside these fenced code blocks, include **only** the commands or code—no commentary.
+
+        5. **Foolproof and Goal-Oriented Instructions**
+        - Think critically: your instructions should handle edge cases or potential errors if relevant.
+        - If the step involves searching for information, explain exactly how the LLM would perform that search (e.g., “Use the local search function with these keywords” or “Prompt the user to supply a reference document”).
+        - Do not assume hidden capabilities. If a required action is not feasible for an LLM agent, propose a workaround or an alternative approach.
+
+        6. **Leverage Existing Tools and Libraries**
+        - Where possible, use well-known libraries, frameworks, or modules to accomplish tasks (e.g., NumPy for numerical operations, Hugging Face Transformers for advanced NLP, etc.).
+        - Refrain from custom-coding solutions if an established method is readily available.
+
+        7. **Integration with `query_llm` Function**
+        - If a sub-step calls for advanced text processing, data analysis, or further decomposition, show exactly how to call your custom `query_llm` function with a well-structured query.
+        - Demonstrate this by including lines of code like:
+
+            ```python
+            d["exe_prompt"] = "Your extended request or instructions here"
+            answer = query_llm(d)
+            ```
+
+        8. **No Unnecessary Commentary in Code Blocks**
+        - Keep extraneous explanations outside of code blocks.
+        - The main text may include rationale or clarifications, but the code blocks themselves should remain strictly executable commands/code.
+
+        9. **Human Interaction**
+        - If human-level communication is needed, provide precise, empathetic, and persuasive messages or prompts.
+        - Clearly denote the communication steps (e.g., “Prompt the user with the following question: …”).
+
+        10. **Acknowledging Limitations**
+            - If something is impossible given an LLM’s constraints, state it clearly and propose a practical workaround.
+            - Do not attempt tasks requiring real-time physical world interactions or paid APIs unless absolutely necessary; if needed, explicitly justify why.
 
         Remember:
         - Think critically and deeply about the step to ensure it is foolproof.
-        - If the step involves interacting with the physical world (e.g., using the webcam), provide detailed instructions on how to process the data (e.g., image analysis, object detection) to achieve the goal.
-        - Do not make assumptions; if a step requires specific information to make sense or be fullfilled, expand the step with a task for local or online searching.
+        - Do not make assumptions; if a step requires specific information to make sense or be fulfilled, expand the step with a task for local or online searching.
         - Be determined and persistent in solving the problem, exploring alternative methods if necessary.
-        - Do not include additional commentary inside code blocks.
-        - Refrain from reinventing the wheel; use popular existing & widely adaopted tools and methods where obviously possible (object detection, text summerization, etc).
-        - You can always extend your knowlegde by talking with an LLM in python by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_llm(d)" (assume this function is always available)
-        - Example of using the LLM python function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_llm(d)"
-        - Query_llm DOES NOT have direct access to the internet, so you need to provide the necessary information as part of the query.
-        - Refrain from using old traditional NLP methods when analyzing retrieved / downloaded content, instead use the query_llm() function.
-        - Refrain from using paid APIs, unless they are absolutely necessary.
-        - If a step requires interactions with humans, ensure the communication is clear, pursuaive, triggers empathy and is effective.
-        - Ensure you don't accidentally mix up python and bash commands in the same code block unless it is designed to specifically work together.
-        - Know you limitations as an LLM agent and don't try to do things that are impossible for an LLM agent to do, instead find a genious workaround.
+        - Refrain from reinventing the wheel; use popular existing & widely adopted tools and methods where obviously possible (object detection, text summarization, etc).
+        - You can always extend your knowledge by talking with an LLM in Python by assigning your full query to `d["exe_prompt"]` and get your answer like so:
+
+        ```python
+        answer = query_llm(d)
+
+            The query_llm function DOES NOT have direct access to the internet, so you need to provide the necessary information as part of the query.
+            Refrain from using old traditional NLP methods when analyzing retrieved/downloaded content; instead, use the query_llm() function.
+            Refrain from using paid APIs unless they are absolutely necessary.
+            Ensure you don't accidentally mix up, for example, Python and Bash commands in the same code block unless it is designed to specifically work together.
+            Know your limitations as an LLM agent and don't try to do things that are impossible for an LLM agent to do; instead, find a genius workaround.
+            The final output must enable an agent (or developer) to immediately perform or test the described actions.
+            Avoid placeholders or vague references. Use dummy or illustrative data if real data is unavailable.
 
         """
+
 
         # Elaborate on step
         step_elaboration = query_llm(d)
