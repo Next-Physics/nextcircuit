@@ -1500,26 +1500,31 @@
     }
 
     function fetchPlanSteps() {
-      if (!activeChainId) return;
-      fetch(`/get_plan?chain_id=${activeChainId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (!data.plan) {
-            showAwaitingPlan();
-            lastPlanData = null;
-            return;
-          }
-          const plan = data.plan;
-          if (!plan.num_steps) {
-            showAwaitingPlan();
-            lastPlanData = plan;
-            return;
-          }
-          lastPlanData = plan;
-          renderPlanSteps({ num_steps: plan.num_steps, steps: plan.steps || {} });
-        })
-        .catch((err) => console.error(err));
-    }
+  if (!activeChainId) return;
+  fetch(`/get_plan?chain_id=${activeChainId}`)
+    .then((res) => res.json())
+    .then((data) => {
+      if (!data.plan) {
+        showAwaitingPlan();
+        lastPlanData = null;
+        return;
+      }
+
+      const plan = data.plan;  // This might have { overview, num_steps, steps }
+
+      // If there's no num_steps, just keep it minimal
+      if (!plan.num_steps) {
+        showAwaitingPlan();
+        lastPlanData = plan;
+        return;
+      }
+
+      lastPlanData = plan;
+      // Pass the entire plan object to our render function.
+      renderPlanSteps(plan);
+    })
+    .catch((err) => console.error(err));
+}
 
     function showAwaitingPlan() {
       document.getElementById(
@@ -1528,76 +1533,103 @@
     }
 
     function renderPlanSteps(dataObj) {
-      const container = document.getElementById("plan_steps_container");
-      container.innerHTML = "";
+  const container = document.getElementById("plan_steps_container");
+  container.innerHTML = "";
 
-      const { num_steps, steps } = dataObj;
-      for (let i = 1; i <= (num_steps || 0); i++) {
-        const stepDiv = document.createElement("div");
-        stepDiv.className = "plan-step";
-        stepDiv.onclick = () => openStepDetail(i);
+  // 1) If there's an "overview" key, show it first
+  if (dataObj.overview) {
+    const overviewDiv = document.createElement("div");
+    overviewDiv.className = "plan-step";
+    overviewDiv.onclick = () => openStepDetail('overview');
 
-        const headerDiv = document.createElement("div");
-        headerDiv.className = "plan-step-header";
+    const headerDiv = document.createElement("div");
+    headerDiv.className = "plan-step-header";
 
-        const iconSpan = document.createElement("span");
-        iconSpan.className = "step-icon";
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "step-icon";
+    // You can choose any icon here
+    iconSpan.textContent = "🌐"; 
 
-        const step = steps[i];
-        if (step) {
-          const status = step.status || "pending";
-          iconSpan.textContent = getStepIcon(status);
+    const titleSpan = document.createElement("span");
+    titleSpan.textContent = "Overview";
 
-          const text = step.step_title || step.elaboration || "... (awaiting details)";
-          const shortText = shortSummary(text, 50);
+    headerDiv.appendChild(iconSpan);
+    headerDiv.appendChild(titleSpan);
+    overviewDiv.appendChild(headerDiv);
 
-          const titleSpan = document.createElement("span");
-          titleSpan.textContent = `Step ${i}) ${shortText}`;
-          headerDiv.appendChild(iconSpan);
-          headerDiv.appendChild(titleSpan);
-          stepDiv.appendChild(headerDiv);
+    container.appendChild(overviewDiv);
+  }
 
-          if (status === "elaborating" || status === "in_progress") {
-            const boldLine = document.createElement("div");
-            boldLine.style.fontWeight = "bold";
-            boldLine.textContent =
-              status === "elaborating" ? "Elaborating..." : "In progress...";
-            stepDiv.appendChild(boldLine);
+  // 2) Then list the numbered steps
+  const { num_steps, steps } = dataObj;
+  for (let i = 1; i <= (num_steps || 0); i++) {
+    const stepDiv = document.createElement("div");
+    stepDiv.className = "plan-step";
+    stepDiv.onclick = () => openStepDetail(i);
 
-            const bar = document.createElement("div");
-            bar.style.height = "6px";
-            bar.style.background = "#444";
-            bar.style.position = "relative";
-            bar.style.borderRadius = "4px";
-            bar.style.overflow = "hidden";
-            bar.style.marginTop = "5px";
+    const headerDiv = document.createElement("div");
+    headerDiv.className = "plan-step-header";
 
-            const fill = document.createElement("div");
-            fill.style.position = "absolute";
-            fill.style.top = "0";
-            fill.style.left = "-100%";
-            fill.style.height = "100%";
-            fill.style.width = "100%";
-            fill.style.borderRadius = "4px";
-            fill.style.animation = "slowTravel 4s linear infinite";
-            fill.style.background =
-              status === "elaborating" ? "var(--warning-color)" : "var(--accent-color)";
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "step-icon";
 
-            bar.appendChild(fill);
-            stepDiv.appendChild(bar);
-          }
-        } else {
-          // placeholder
-          iconSpan.textContent = "🔘";
-          const titleSpan = document.createElement("span");
-          titleSpan.textContent = `Step ${i}) ... (awaiting title)`;
-          headerDiv.appendChild(iconSpan);
-          headerDiv.appendChild(titleSpan);
-          stepDiv.appendChild(headerDiv);
-        }
-        container.appendChild(stepDiv);
+    const step = steps[i];
+    if (step) {
+      const status = step.status || "pending";
+      iconSpan.textContent = getStepIcon(status);
+
+      const text = step.step_title || step.elaboration || "... (awaiting details)";
+      const shortText = shortSummary(text, 50);
+
+      const titleSpan = document.createElement("span");
+      titleSpan.textContent = `Step ${i}) ${shortText}`;
+      headerDiv.appendChild(iconSpan);
+      headerDiv.appendChild(titleSpan);
+      stepDiv.appendChild(headerDiv);
+
+      // Show any in-progress bar, etc. (existing logic)
+      if (status === "elaborating" || status === "in_progress") {
+        const boldLine = document.createElement("div");
+        boldLine.style.fontWeight = "bold";
+        boldLine.textContent =
+          status === "elaborating" ? "Elaborating..." : "In progress...";
+        stepDiv.appendChild(boldLine);
+
+        const bar = document.createElement("div");
+        bar.style.height = "6px";
+        bar.style.background = "#444";
+        bar.style.position = "relative";
+        bar.style.borderRadius = "4px";
+        bar.style.overflow = "hidden";
+        bar.style.marginTop = "5px";
+
+        const fill = document.createElement("div");
+        fill.style.position = "absolute";
+        fill.style.top = "0";
+        fill.style.left = "-100%";
+        fill.style.height = "100%";
+        fill.style.width = "100%";
+        fill.style.borderRadius = "4px";
+        fill.style.animation = "slowTravel 4s linear infinite";
+        fill.style.background =
+          status === "elaborating" ? "var(--warning-color)" : "var(--accent-color)";
+
+        bar.appendChild(fill);
+        stepDiv.appendChild(bar);
       }
+    } else {
+      // placeholder if step is missing
+      iconSpan.textContent = "🔘";
+      const titleSpan = document.createElement("span");
+      titleSpan.textContent = `Step ${i}) ... (awaiting title)`;
+      headerDiv.appendChild(iconSpan);
+      headerDiv.appendChild(titleSpan);
+      stepDiv.appendChild(headerDiv);
     }
+    container.appendChild(stepDiv);
+  }
+}
+
 
     function renderPlanStepsPlaceholder() {
       const container = document.getElementById("plan_steps_container");
@@ -1646,17 +1678,28 @@
 
     /* STEP DETAIL POPUP */
     function openStepDetail(stepIndex) {
-      if (!lastPlanData || !lastPlanData.steps || !lastPlanData.steps[stepIndex]) {
-      showStepModal(`Step ${stepIndex}`, "No elaboration available.");
-      return;
-      }
-      const stepObj = lastPlanData.steps[stepIndex];
-      const stepTitle = stepObj.step_title || `Step ${stepIndex}`;
-      const stepElaboration = stepObj.elaboration || "";
-
-      const bodyText = stepElaboration ? stepElaboration : "No elaboration yet.";
-      showStepModal(stepTitle, bodyText);
+  // Special check for overview
+  if (stepIndex === 'overview') {
+    if (lastPlanData && lastPlanData.overview) {
+      showStepModal("Overview", lastPlanData.overview);
+    } else {
+      showStepModal("Overview", "No overview available.");
     }
+    return;
+  }
+
+  // Otherwise, handle numeric step (existing logic)
+  if (!lastPlanData || !lastPlanData.steps || !lastPlanData.steps[stepIndex]) {
+    showStepModal(`Step ${stepIndex}`, "No elaboration available.");
+    return;
+  }
+
+  const stepObj = lastPlanData.steps[stepIndex];
+  const stepTitle = stepObj.step_title || `Step ${stepIndex}`;
+  const stepElaboration = stepObj.elaboration || "";
+  const bodyText = stepElaboration ? stepElaboration : "No elaboration yet.";
+  showStepModal(stepTitle, bodyText);
+}
     function showStepModal(title, body) {
   const overlay = document.getElementById("step_detail_overlay");
   overlay.classList.add("active");
