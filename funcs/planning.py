@@ -75,61 +75,81 @@ def extract_number_of_steps(d):
 
 
 def propose_step_by_step_plan(d):
+
     print("Laying out step-by-step plan to achieve the goal...")
 
+
     d["exe_prompt"] = f"""
-    Task:
+1. ROLE & CONTEXT
 
-    Create a comprehensive and extremely detailed plan to achieve the following goal:
+You are an advanced autonomous agent capable of handling the entire lifecycle of tasks. Your capabilities include (but are not limited to):
 
-    {d['prompt']}
+    Local storage (read and write access).
+    External APIs, tools, and services (querying, retrieving data, and performing transactions).
+    Using credit card (found in d['credit_card']) access for online apis, purchases, rentals, or subscriptions.
+    Self-query (e.g., you can ask yourself or an LLM clarifying questions, or reference external data) by using query_llm(d) where d['exe_prompt'] has your query. Remeber to import like: funcs.query_llm import query_llm and assign question / content / query to d['exe_prompt'] = "Some content".
+    Potential real-world interactions, such as scheduling appointments, controlling hardware, or purchasing items.
+    Internal chain-of-thought.
 
-    The plan MUST be suitable for an autonomous LLM agent to fully execute WITHOUT human input from start to finish.
-    The plan should result in the goal being achieved, even if it requires changes & interactions in the physical world.
-    Find the path of least resistance to achieve the goal (if the users objective can be achieved in a smarter way then they mention you may modify exclude, modify or add particular points mentioned by the user).
+Your primary objective is to provide a comprehensive, step-by-step plan for achieving the user’s requested outcome. You should assume that you can execute each step autonomously (with no further human input).
 
-    Resources Available:
-    - Access to local PC hardware
-    - Ability to execute terminal commands
-    - Internet access for browsing, data retrieval, and communication (email and social media)
-    - Ability to read & write files to local storage (common results can be written to folder {d['results_dir']})
-    - Credit card for online purchases (credit card details found in python variable d['credit_card'])
-    - Webcam & microphone to become aware of your surroundings
+The user’s request is as follows:
+{d['prompt']}
 
-    Capabilities:
-    - You can write and execute code (e.g., Python, Bash scripts)
-    - You can always extend your knowlegde by talking with an LLM in python by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_llm(d)" (assume this function is always available)
-    - Example of using the LLM python function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_llm(d)"
-    - You maybe attempt to interact with hardware peripherals (e.g., webcam, microphone, alexa etc.)
-    - You are encouraged to perform web searches and interact with websites
-    - You cannot directly change the physical world, but you trigger other actions
 
-    Instructions:
-    - Provide step-by-step instructions to accomplish the goal (you will get the chance to elaborate more on each step later).
-    - Use unique numbering for steps (e.g., **Step 1: some task**, **Step 2: another task**); do not use sub-steps like '3.1'.
-    - Ensure each step are linked to each other and directly contributes to achieving the goal.
-    - Use popular and widely adopted methods & tools; avoid uncommon or outdated tools and methods unless absolutely necessary.
-    - Utilize available resources effectively to enhance the plan.
-    - Anticipate potential challenges and include troubleshooting tips.
-    - Think critically and deeply about how each action will help achieve the goal.
-    - If a step involves interacting with the physical world, make a detailed plan with instructions on how to achieve this.
-    - Be determined and persistent in solving the problem, and explore alternative methods if necessary.
-    - Always verify the feasibility of each step with the given resources.
-    - If a step requires interactions with humans, ensure the communication is clear, pursuaive, triggers empathy and is effective.
-    - Include as many steps as necessary to achieve the goal at all costs.
-    - Refrain from using paid APIs, unless they are absolutely necessary.
-    - Don't make up nonsensical steps that don't contribute to the goal.
-    - Take the path of least resistance to achieve the goal (unless otherwise specified).
-    - If the goal is simple, consider an uncomplicated short plan 
-    
-    Output Format:
-    - Break down the plan into numbered steps (eg. **Step 4: A task**).
-    - Use bullet points for additional details.
-    - Ensure the plan is relevant and realistic and executable with the given resources.
-    - Always write out all your steps in full.
-    - At the end of each step, list the expected inputs and outputs the agent should expect and create.
-    - NEVER EVER end your output with leftover hidden steps like so **... (36 more steps)**
-    - I repeat, NEVER EVER end the output with leftover hidden steps like so **... (36 more steps) or (15-36 additional steps)**
+2. TASK ANALYSIS
+
+Given the users request, you should:
+    Break down the goal into clear sub-goals or deliverables.
+    Identify resources needed—digital, physical, human, or otherwise.
+    Generate a step-by-step plan that logically addresses and completes each sub-goal.
+    Use unique numbering for steps (e.g., **Step 1: some task**, **Step 2: another task**, etc.).
+
+In doing so, remember to tailor the depth and complexity of your plan based on the complexity of the request:
+    If straightforward, produce a concise plan with fewer steps.
+    If complex, produce a thorough plan covering every necessary sub-step and consideration.
+    Always aim for the path of least resistance while ensuring completeness.
+
+3. STEP-BY-STEP PLAN REQUIREMENTS
+
+When crafting your step-by-step plan, include:
+
+    Objective: Why this subtask is necessary.
+    Actions: Actions will be carried out as code blocks. Concrete measures or actions you will perform (e.g., “Execute Python script to parse data,” “Query a specific API,” “Use credit card to purchase materials”).
+    Tools/Queries: Identify which tools, APIs, search engines, or local queries you will use and why they’re relevant.
+    Time / Sequence: Indicate the order and logical flow of tasks, and note approximate time if relevant.
+    Dependencies / Prerequisites: Note if any steps must be completed before others can begin.
+    Validation & Checks: Specify how to verify correctness or completion (e.g., verifying a file was created correctly, confirming a purchase, or obtaining final user approval).
+
+Important: The plan should be detailed enough that an autonomous LLM agent with the listed capabilities can fully execute it “from start to finish” without additional human intervention, unless absolutely necessary.
+In practice: Next step will be able to elaborate further on each step of the plan. To actually execute the plan, we will strip the content, extract code blocks and execute them in a controlled environment.
+
+
+4. STYLE & FORMATTING GUIDELINES
+    Organize your plan using clear headings, bullet points, or numbered lists.
+    Provide brief rationales for your decisions, especially if they are non-obvious (e.g., “Using Library X because it best handles large data sets”).
+
+5. FURTHER INSTRUCTIONS FOR PLANNING & OUTPUT
+
+    Do not output as markdown.
+    Number your plan’s steps clearly (e.g., **Step 1: some task**, **Step 2: another task**, etc.).
+    File/Data References: If you create a file (e.g., output.json) or variable (e.g., final_results), consistently refer to the same exact name in subsequent steps.
+    Important, Code blocks will be executed sepertely, if a variable or file is needed in the sequential code block, make sure to save it in the correct location.
+    Results and any 'working documents & file' must be saved in folder {d['results_dir']}
+    Connect each step to the next, ensuring every subtask contributes to the overall goal.
+    Use modern, up-to-date methods or tools unless outdated ones are absolutely required.
+    Anticipate potential challenges or risks, and include troubleshooting tips.
+    Verify feasibility of each step with given resources (e.g., do you have the correct permissions, hardware capabilities, etc.?).
+    For any steps requiring human interaction, ensure instructions for communication are clear, empathetic, and effective.
+    Maintain clarity and simplicity, especially if the user is not highly technical.
+    Avoid unnecessary or redundant steps.
+    Minimize cost (avoid paid APIs if free alternatives exist).
+    Double-check that data or files generated in one step are used or referenced accurately in later steps.
+    Lastly remember, the user will not take any action on the plan. The plan should be fully autonomous and executable using subsequence steps with bash and python code blocks.
+    I will show you the results of the execution so you can see if the plan is working as expected. We will step in the same step until it has been executed successfully.
+    NEVER EVER end your output with leftover hidden steps like so **... (36 more steps)**.
+    I repeat, NEVER EVER end the output with leftover hidden steps like so **... (36 more steps)**.
+
     """
 
     # Generate plan overview
@@ -218,6 +238,8 @@ def elaborate_on_steps(d):
         - Well-known libraries and standard methods; avoid unnecessary custom solutions.
         - Clear handling of constraints, proposing feasible workarounds where needed.
         - Precision and critical thought to ensure the step is foolproof and practical.
+        - Explicitly mention how the output of this step will be saved or passed to subsequent steps (and include required logic in the code block).
+        - If a file is created or updated, specify the exact file name and how it will be used later.
 
         Example: 
         ```python
@@ -225,9 +247,9 @@ def elaborate_on_steps(d):
         answer = query_llm(d)
         ```
 
-        Pay attention to the expected inputs and outputs from each step to ensure seamless execution.
-        Your elaboration of this step will be directly parsed into code blocks, executed and fed back into an AI agent for inspection (who can also read your comments for context).
-        Therefore Ensure the instructions are clear, concise, and fully actionable. Having executed all the code blocks in your elaboration, the AI agent should be able to proceed to the next step without any human intervention.
+        Pay attention to the expected inputs and outputs from this step to ensure seamless execution.
+        Your elaboration will be directly parsed into code blocks, executed, and fed back into the AI agent for inspection (which can read your comments as context).
+        Thus, the instructions must be fully actionable with no human intervention needed.
         """
 
         step_elaboration = query_llm(d)
@@ -244,6 +266,3 @@ def elaborate_on_steps(d):
 
 
     print("Success!\n")
-
-
-{'prompt': 'Book a commercial flight or charter a private jet to Tokyo, Japan (approximately 12 hours) and spend one day researching lunar missions, space agencies, and private companies offering moon travel services. Then, research and book a sub-orbital spaceflight experience with Virgin Galactic, Blue Origin, SpaceX, or any other company that offers such a service. If no commercial option is available within the timeframe, prepare for an extended trip by booking a cargo ship or a scientific expedition vessel traveling to the International Space Station (ISS) as a passenger, and then arrange transportation from the ISS to the moon via a lunar module or spacecraft available on the space station.', 'attached_files': '[]', 'model': 'mannix/llama3.1-8b-abliterated', 'results_dir': 'C:\\Users\\mvlor\\Documents\\nextcircuit\\results', 'id': 53, 'port': 11434, 'local_ip': '192.168.1.11', 'exe_prompt': "\n    Look closely at the following text:\n\n    '**Overview**\n\nTo achieve the goal of booking a commercial flight or chartering a private jet to Tokyo, Japan, and then conducting research on lunar missions and space travel, followed by booking a sub-orbital spaceflight experience, I will provide a comprehensive plan that utilizes available resources to execute each step.'\n\n    What is the number of the absolut last step in this plan? Please return the highest (last) step-number only. Think twice and deeply before you answer. Answer just with the number only: \n    ", 'category': 'Space', 'title': '"Moon Landing in a Month"', 'detected_os': {'system_name': 'Windows', 'node_name': 'mvlorenz', 'release': '11', 'version': '10.0.22631', 'platform_info': 'Windows-11-10.0.22631-SP0', 'processor': 'Intel64 Family 6 Model 154 Stepping 3, GenuineIntel', 'machine': 'AMD64'}, 'detected_hardware': {'logical_cpus': 20, 'physical_cpus': 14, 'cpu_frequency_mhz': 2300.0, 'cpu_usage_percent': 0.9, 'total_memory_gb': 15.627998352050781, 'available_memory_gb': 2.2458953857421875, 'disk_partitions': [{'device': 'C:\\', 'mountpoint': 'C:\\', 'fstype': 'NTFS', 'opts': 'rw,fixed', 'usage': {'total': 510549889024, 'used': 206150938624, 'free': 304398950400, 'percent': 40.4}}]}, 'internet_connection': True, 'plan': {'overview': '**Overview**\n\nTo achieve the goal of booking a commercial flight or chartering a private jet to Tokyo, Japan, and then conducting research on lunar missions and space travel, followed by booking a sub-orbital spaceflight experience, I will provide a comprehensive plan that utilizes available resources to execute each step.', 'num_steps': 3}}

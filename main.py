@@ -98,18 +98,16 @@ def main():
     
 
     print("PROMPT: ", d["prompt"])
-    print("")
-
 
     # Generate chain title
     update_chains_db(d["id"], "progress_stage", "Generating agent title...")
     generate_chain_title(d)
     
 
-    # Elabroate on the prompt
-    update_chains_db(d["id"], "progress_stage", "Enriching user prompt for detailed understanding...")
-    create_elaboration_prompt(d)
-    update_chains_db(d["id"], "progress_pct", 1)
+    # # Elabroate on the prompt
+    # update_chains_db(d["id"], "progress_stage", "Enriching user prompt for detailed understanding...")
+    # create_elaboration_prompt(d)
+    # update_chains_db(d["id"], "progress_pct", 1)
 
     # Investigate circumstances (Physical Hardware, OS, Internet Connection)
     update_chains_db(d["id"], "progress_stage", "Gathering details on users physical hardware...")
