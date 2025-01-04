@@ -10,7 +10,7 @@ from funcs.initialization import setup_dirs
 from funcs.initialization import setup_dbs
 from funcs.initialization import submit_supplimentary_info
 from funcs.initialization import investigate_circumstances
-from funcs.initialization import generate_chain_title
+from funcs.initialization import generate_agent_title
 from funcs.initialization import generate_new_chain_id
 from funcs.initialization import create_chain_results_dir
 
@@ -45,12 +45,8 @@ def main():
     ################### SESSION SETTINGS #######################
     ############################################################
 
-
     if args.chain_id != "None":
         pass
-
-    # Set user query
-    #d["prompt"] = "Help me cure my brain cancer using oncolytic virus quickly!. From design to bioreactor production."
 
      # Dictionary to store data
     d = {}
@@ -64,8 +60,6 @@ def main():
     d["api_key"] = args.api_key
     d["chain_id"] = args.chain_id
     
-
-    print(d)
     ############################################################
     #################### INITIALIZATION ########################
     ############################################################
@@ -81,65 +75,50 @@ def main():
 
     d["id"] = generate_new_chain_id()
 
-
-
     # Set up chain_id results directory results/<chain_id>
     create_chain_results_dir(d)
 
     # Submit supplimentary information to the database
     submit_supplimentary_info(d)
 
-    # Overwrite print function to also log to database
+    # Overwrite print function to also log to 'history' in database
     builtins.print = create_print_with_logging(d["id"])
 
-    # Update the initial progress
-    update_chains_db(d["id"], "progress_stage", "Starting...")
-    update_chains_db(d["id"], "progress_pct", 0)
+    # Print identified input
+    print(d)
+
+    # Generate agent title
+    generate_agent_title(d)
     
-
-    print("PROMPT: ", d["prompt"])
-
-    # Generate chain title
-    update_chains_db(d["id"], "progress_stage", "Generating agent title...")
-    generate_chain_title(d)
-    
-
     # # Elabroate on the prompt
     # update_chains_db(d["id"], "progress_stage", "Enriching user prompt for detailed understanding...")
     # create_elaboration_prompt(d)
     # update_chains_db(d["id"], "progress_pct", 1)
 
-    # Investigate circumstances (Physical Hardware, OS, Internet Connection)
-    update_chains_db(d["id"], "progress_stage", "Gathering details on users physical hardware...")
+    # Gather details on users physical hardware.
     investigate_circumstances(d)
 
     ############################################################
     ######################## PLANNING ##########################
     ############################################################
 
-    # Propose a step-by-step plan
-    update_chains_db(d["id"], "progress_stage", "Laying out step-by-step plan to achieve the goal...")
+    # Propose a step-by-step plan for agent to follow
     propose_step_by_step_plan(d)
-    update_chains_db(d["id"], "progress_pct", 2)
     
     # Extract the step titles
-    update_chains_db(d["id"], "progress_stage", "Extracting titles for each step...")
     extract_step_titles(d)
 
     # Elaborate on each step of the plan
-    update_chains_db(d["id"], "progress_stage", "Elaborating & extending each step of the plan to gain more details...")
     elaborate_on_steps(d)
-    update_chains_db(d["id"], "progress_pct", 3)
     
     #############################################################
     #################### EXECUTE PLAN ###########################
     #############################################################
 
     # Start execution of the plan
-    update_chains_db(d["id"], "progress_stage", "Executing plan...")
+    
     execute_plan(d)
-    update_chains_db(d["id"], "progress_stage", "Finished")
-    update_chains_db(d["id"], "progress_pct", 100)
+
 
 
 

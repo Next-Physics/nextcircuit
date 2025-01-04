@@ -76,6 +76,8 @@ def extract_number_of_steps(d):
 
 def propose_step_by_step_plan(d):
 
+    update_chains_db(d["id"], "progress_stage", "Laying out step-by-step plan to achieve the goal...")
+
     print("Laying out step-by-step plan to achieve the goal...")
 
 
@@ -163,13 +165,17 @@ In practice: Next step will be able to elaborate further on each step of the pla
     # Write "plan" to database
     update_chains_db(d["id"], "plan", d["plan"])
 
-    print("Success!\n")
+    # Update progress percentage
+    update_chains_db(d["id"], "progress_pct", 2)
+
     return d
 
 
 
 
 def extract_step_titles(d):
+
+    update_chains_db(d["id"], "progress_stage", "Extracting titles for each step...")
 
     print("Extracting steps titles...")
     # Initialize 'steps' if it doesn't exist
@@ -216,6 +222,10 @@ def extract_step_titles(d):
         update_chains_db(d["id"], "plan", d["plan"])
 
 def elaborate_on_steps(d):
+
+    update_chains_db(d["id"], "progress_stage", "Elaborating & extending each step of the plan to gain more details...")
+
+
     for i in range(1, d["plan"]["num_steps"] + 1):
         # Update status
         d["plan"]["steps"][i]["status"] = "elaborating"
@@ -262,7 +272,8 @@ def elaborate_on_steps(d):
 
         # Write to database
         update_chains_db(d["id"], "plan", d["plan"])
+        update_chains_db(d["id"], "progress_pct", 2 + round( 6 / d["plan"]["num_steps"] * i)) 
+    
 
-
-
-    print("Success!\n")
+    ### how should the last rounding look if an arbitraty number needs to be diviided into equal pieces to add up to 6?
+    ### 

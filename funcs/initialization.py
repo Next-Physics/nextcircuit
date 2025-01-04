@@ -27,6 +27,11 @@ def setup_dirs(script_folder,d):
 
 
 def create_chain_results_dir(d):
+
+    # Update the progress stage
+    update_chains_db(d["id"], "progress_stage", "Set up chain_id results directory...")
+    update_chains_db(d["id"], "progress_pct", 0)
+
     chain_id = d["id"]
     results_dir = os.path.join(d["results_dir"], str(chain_id))
     os.makedirs(results_dir, exist_ok=True)
@@ -192,9 +197,10 @@ def generate_new_chain_id():
     return chain_id
 
 
-def generate_chain_title(d):
+def generate_agent_title(d):
 
-    print("Generating chain ID and title...")
+    update_chains_db(d["id"], "progress_stage", "Generating agent title...")
+    print("Generating chain ID and agent title...")
 
     pre_prompt = """
     Given the user query below, write an ultra short title that summerizes what the user wants to achieve. Maximum 200 characters:
@@ -224,9 +230,11 @@ def update_chain_title(d):
 
 def investigate_circumstances(d):
 
+    update_chains_db(d["id"], "progress_stage", "Gathering details on users physical hardware...")
+    
     chain_id = d["id"]
     print("Investigating physical circumstances and updating DB...")
-
+    
     # Detect the OS
     detected_os = investigate_platform()
     d["detected_os"] = detected_os
@@ -298,6 +306,11 @@ def check_internet_connection(host="8.8.8.8", port=53, timeout=3):
         return False
 
 def submit_supplimentary_info(d):
+
+    # Update the progress stage
+    update_chains_db(d["id"], "progress_stage", "Submitting supplimentary information to database...")
+
+    # Submit supplimentary information to the database
     conn = sqlite3.connect('db/main.db')
     c = conn.cursor()
     query = "UPDATE chains SET attached_files = ?, chain_last_modified = datetime('now') WHERE id = ?"

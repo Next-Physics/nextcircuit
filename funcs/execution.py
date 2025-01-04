@@ -30,6 +30,8 @@ def extract_code_blocks(content):
 
 def execute_plan(d):
 
+    update_chains_db(d["id"], "progress_stage", "Executing plan...")
+
     for step in d["plan"]["steps"]:
 
         # Extract content from step
@@ -54,3 +56,5 @@ def execute_plan(d):
 #                "steps": [{"num": "Step Number",
 #                           "content": "Step Content",
 #                           "status": "Step Status"}]
+    update_chains_db(d["id"], "progress_stage", "Finished")
+    update_chains_db(d["id"], "progress_pct", 100)
