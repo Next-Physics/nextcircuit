@@ -84,14 +84,17 @@ def propose_step_by_step_plan(d):
     d["exe_prompt"] = f"""
 1. ROLE & CONTEXT
 
-You are an advanced autonomous agent capable of handling the entire lifecycle of tasks. Your capabilities include (but are not limited to):
+You are an advanced autonomous agent capable of handling the entire lifecycle of an elaborate plan to meet the users goal.
+Your capabilities include (but are not limited to):
 
     Local storage (read and write access).
     External APIs, tools, and services (querying, retrieving data, and performing transactions).
     Using credit card (found in d['credit_card']) access for online apis, purchases, rentals, or subscriptions.
-    Self-query (e.g., you can ask yourself or an LLM clarifying questions, or reference external data) by using query_llm(d) where d['exe_prompt'] has your query. Remeber to import like: funcs.query_llm import query_llm and assign question / content / query to d['exe_prompt'] = "Some content".
-    Potential real-world interactions, such as scheduling appointments, controlling hardware, or purchasing items.
+    LLM query (e.g., you can send request to an LLM to generate text & analyze data) by using function query_llm(d) where d['exe_prompt'] has your query. Remeber to import like: funcs.query_llm import query_llm and assign question / content / query to d['exe_prompt'] = "Some content".
+    Potential real-world interactions, such as scheduling appointments, controlling hardware, purchasing items, communications.
+    Access to pherephials like cameras, microphones, bluetooth, etc.
     Internal chain-of-thought.
+    Ability to execute terminal commands
 
 Your primary objective is to provide a comprehensive, step-by-step plan for achieving the user’s requested outcome. You should assume that you can execute each step autonomously (with no further human input).
 
@@ -105,6 +108,7 @@ Given the users request, you should:
     Break down the goal into clear sub-goals or deliverables.
     Identify resources needed—digital, physical, human, or otherwise.
     Generate a step-by-step plan that logically addresses and completes each sub-goal.
+    Keep in mind you capabilities as mentioned previously (e.g., LLM queries, API access, local storage, etc.).
     Use unique numbering for steps (e.g., **Step 1: some task**, **Step 2: another task**, etc.).
 
 In doing so, remember to tailor the depth and complexity of your plan based on the complexity of the request:
@@ -116,22 +120,17 @@ In doing so, remember to tailor the depth and complexity of your plan based on t
 
 When crafting your step-by-step plan, include:
 
-    Objective: Why this subtask is necessary.
-    Actions: Actions will be carried out as code blocks. Concrete measures or actions you will perform (e.g., “Execute Python script to parse data,” “Query a specific API,” “Use credit card to purchase materials”).
-    Tools/Queries: Identify which tools, APIs, search engines, or local queries you will use and why they’re relevant.
-    Time / Sequence: Indicate the order and logical flow of tasks, and note approximate time if relevant.
+    Over all actions: A bullet point view of all the actions to be carried.
+    Proposal of which tools, APIs, search engines, or local queries you will use
+    Indication of the order and logical flow of tasks, and note approximate time if relevant.
     Dependencies / Prerequisites: Note if any steps must be completed before others can begin.
     Validation & Checks: Specify how to verify correctness or completion (e.g., verifying a file was created correctly, confirming a purchase, or obtaining final user approval).
+    Logic representation 
 
 Important: The plan should be detailed enough that an autonomous LLM agent with the listed capabilities can fully execute it “from start to finish” without additional human intervention, unless absolutely necessary.
-In practice: Next step will be able to elaborate further on each step of the plan. To actually execute the plan, we will strip the content, extract code blocks and execute them in a controlled environment.
+In practice: Next step of the program we will have another LLM elaborate further on each step of the plan to ensure the step if fully executable.
 
-
-4. STYLE & FORMATTING GUIDELINES
-    Organize your plan using clear headings, bullet points, or numbered lists.
-    Provide brief rationales for your decisions, especially if they are non-obvious (e.g., “Using Library X because it best handles large data sets”).
-
-5. FURTHER INSTRUCTIONS FOR PLANNING & OUTPUT
+4. FURTHER INSTRUCTIONS FOR PLANNING & OUTPUT
 
     Do not output as markdown.
     Number your plan’s steps clearly (e.g., **Step 1: some task**, **Step 2: another task**, etc.).
@@ -151,6 +150,11 @@ In practice: Next step will be able to elaborate further on each step of the pla
     I will show you the results of the execution so you can see if the plan is working as expected. We will step in the same step until it has been executed successfully.
     NEVER EVER end your output with leftover hidden steps like so **... (36 more steps)**.
     I repeat, NEVER EVER end the output with leftover hidden steps like so **... (36 more steps)**.
+
+5. PRIORITIZATION
+
+    If a task requires text generation or text analysis, ALWAYS use the function query_llm() with your query in d['exe_prompt'] rather than using traditional/other NLP methods. 
+    Find the path of least resistance to achieve the goal (if the end results is 100% the same you may modify exclude, modify or add particular points mentioned by the user).
 
     """
 
@@ -236,30 +240,79 @@ def elaborate_on_steps(d):
         # Generate elaboration prompt
         d["exe_prompt"] = f"""
         As a planning and action expert, elaborate extensively on **Step {i}** of this plan:
-        
-        Plan Overview:
+
+        **Plan Overview**:
         '{d['plan']['overview']}'
 
-        Include:
-        - A detailed procedure linking seamlessly to other steps.
-        - All required tools, data, or setups with exact acquisition or generation methods.
-        - Fully executable, error-handling code in fenced blocks (```python, ```bash), avoiding placeholders or pseudo-code.
-        - Steps to address missing context or data with actionable queries or alternative solutions.
-        - Well-known libraries and standard methods; avoid unnecessary custom solutions.
-        - Clear handling of constraints, proposing feasible workarounds where needed.
-        - Precision and critical thought to ensure the step is foolproof and practical.
-        - Explicitly mention how the output of this step will be saved or passed to subsequent steps (and include required logic in the code block).
-        - If a file is created or updated, specify the exact file name and how it will be used later.
+        **Instructions**:
 
-        Example: 
+        a. **Elaboration Requirements**
+        - A concise description of the all actions required, ensuring it can be carried out autonomously by the LLM agent and directly contribute towards achieving the goal.
+        - Provide all full necessary code or commands, enclosed in markdown code blocks.
+        - Provide real executable code - don't provide hypothetical examples
+        - Language identifiers after the opening triple backticks in code blocks (e.g., ```python, ```bash).
+        - Ensure that code blocks contain only the code or commands to be executed.
+        - An answer that makes sense and is relevant to the step (no nonsensical outputs).
+
+        b. ** Remember **
+        - Think critically and deeply about the step to ensure it is foolproof.
+        - If the step involves interacting with the physical world (e.g., using the webcam), provide detailed instructions on how to process the data (e.g., image analysis, object detection) to achieve the goal.
+        - Do not make assumptions; if a step requires specific information to make sense or be fullfilled, expand the step with a task for local or online searching.
+        - Be determined and persistent in solving the problem, exploring alternative methods if necessary.
+        - Do not include additional commentary inside code blocks.
+        - Refrain from reinventing the wheel; use popular existing & widely adaopted tools and methods where obviously possible (object detection, text summerization, etc).
+        - You can always extend your knowlegde by talking with an LLM in python by assigning your full query to d["exe_prompt"] and get your answer like so "answer = query_llm(d)" (assume this function is always available)
+        - Example of using the LLM python function: d["exe_prompt"] = "Analyze this text:" + f.read() and then featch the LLM answer like so "answer = query_llm(d)"
+        - Query_llm DOES NOT have direct access to the internet, so you need to provide the necessary information as part of the query.
+        - Refrain from using old traditional NLP methods when analyzing retrieved / downloaded content, instead use the query_llm() function.
+        - Refrain from using paid APIs, unless they are absolutely necessary.
+        - If a step requires interactions with humans, ensure the communication is clear, pursuaive, triggers empathy and is effective.
+        - Ensure you don't accidentally mix up python and bash commands in the same code block unless it is designed to specifically work together.
+        - Know you limitations as an LLM agent and don't try to do things that are impossible for an LLM agent to do, instead find a genious workaround.
+
+        c. **Consolidate Dependent Code in a Single Code Block**  
+        - If any code in this step relies on or references variables, imports, or data from earlier lines within the same step, **keep it all within exactly one fenced code block** (e.g., triple backticks for Python: ```python ... ```).
+        - If you need to demonstrate partial references to code, do so inline (e.g. `like this`) or as comments **without** creating new fenced blocks.
+
+        d. **Separate Only Completely Independent Code**  
+        - If you must show code for a completely different context (e.g., Bash script, Dockerfile) that does not interact with the Python code, you may create a separate fenced code block.  
+        - **Otherwise, do not split code** into multiple fenced blocks.
+
+        e. **Detailed Procedure**  
+        - Explain step-by-step instructions linking to earlier and subsequent steps.
+        - List any tools, libraries, or data sources required, and how to install or import them.
+        - Clearly specify how to save results in the folder {d['results_dir']} for use in subsequent steps.
+
+        f. **Output Passing**  
+        - Explicitly mention how to pass or store the outputs (e.g., variables, files) so subsequent steps can use them.
+        - Use consistent file paths, especially those referencing {d['results_dir']}.
+
+        **Important**:  
+        - Ensure choerence between current step and the surrounding steps.
+        - Any code for this step must be placed inside a single fenced code block if the lines are interdependent.  
+        - Avoid splitting related Python code, as we run each fenced code block in isolation.  
+        - Keep the number of fenced code blocks minimal for each step.
+
+        - Example usage of the function query_llm along with a local file:
         ```python
-        d["exe_prompt"] = "Structured query or detailed instructions"
+        from funcs.query_llm import query_llm
+
+        with open("results_dir/some_file>", "r") as f:
+            content = f.read()
+
+        d["exe_prompt"] = "Detailed instructions:" + content
         answer = query_llm(d)
+
+        with open("results_dir/another_file", "w") as f:
+            f.write(answer)
         ```
 
-        Pay attention to the expected inputs and outputs from this step to ensure seamless execution.
-        Your elaboration will be directly parsed into code blocks, executed, and fed back into the AI agent for inspection (which can read your comments as context).
-        Thus, the instructions must be fully actionable with no human intervention needed.
+        **Deliverables**:
+        - A thorough, foolproof explanation of how to execute Step {i}.
+        - A single self-contained (or minimal separate) code block that can be run to produce the expected results.
+        - Clear instructions for verifying success or diagnosing failures.
+
+        **Now, please provide your elaboration for Step {i}**:
         """
 
         step_elaboration = query_llm(d)

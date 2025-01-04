@@ -64,6 +64,7 @@ def main():
     #################### INITIALIZATION ########################
     ############################################################
 
+    print(d["chain_id"])
     # Move to directory
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -116,7 +117,6 @@ def main():
     #############################################################
 
     # Start execution of the plan
-    
     execute_plan(d)
 
 
