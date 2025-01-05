@@ -2,41 +2,14 @@ import sqlite3
 from funcs.query_llm import query_llm
 from funcs.db_funcs import update_chains_db
 
-### Given the users prompt, please return a list of selected keywords that are relevant to the prompt
-def categorize_content(d):
-    print("Categorizing content...")
-    d["exe_prompt"] = f"""Given the following user query:
-
-    "{d['prompt']}"
-
-    Please categorize the content of the query into one of the following categories:
-
-    - Food
-    - Technology
-    - Pharmaceuticals
-    - Medicine & Health
-    - Mathematics
-    - Physics
-    - Chemistry
-    - Biology
-    - Computer Science
-    - Engineering
-    - History
-    - Geography
-    - Literature
-    - Art
-    - Sports
-    - Politics
-    - Entertainment
-
-    And return just the single keyword that best describes the content of the query. Nothing but the keyword. What is the keyword?
-
-    """
-
-    d["category"] = query_llm(d)
 
 def create_elaboration_prompt(d):
-    print("Elaborating / extending user query...")
+
+    ### Provide information on this stage
+    info = "Elaborating on user prompt..."
+    print(info)
+    update_chains_db(d["id"], "progress_stage", info)
+
     d["exe_prompt"] = f"""You are an expert at reformulating and expanding user queries into a more comprehensive and actionable request, ensuring no contradictions or unnecessary complexities. Your goal is to produce a single, coherent elaboration of the user’s initial query that can be directly executed by an autonomous AI agent with broad capabilities (internet access, ability to purchase items, communicate online, and utilize local computing resources) without needing additional clarification.
 
 The elaborated query must:
@@ -56,7 +29,13 @@ User’s original query:
 "{d['prompt']}"
 """
     d['prompt'] = query_llm(d)
+
+    # Update the next stage
+    d["next_stage"] = "investigate_circumstances"
+    update_chains_db(d["id"], "next_stage", "investigate_circumstances")
+    
     return d
+
 
 
 
@@ -76,10 +55,10 @@ def extract_number_of_steps(d):
 
 def propose_step_by_step_plan(d):
 
-    update_chains_db(d["id"], "progress_stage", "Laying out step-by-step plan to achieve the goal...")
-
-    print("Laying out step-by-step plan to achieve the goal...")
-
+    ### Provide information on this stage
+    info = "Laying out step-by-step plan to achieve the goal..."
+    print(info)
+    update_chains_db(d["id"], "progress_stage", info)
 
     d["exe_prompt"] = f"""
 1. ROLE & CONTEXT
@@ -172,14 +151,19 @@ In practice: Next step of the program we will have another LLM elaborate further
     # Update progress percentage
     update_chains_db(d["id"], "progress_pct", 2)
 
+    # Update the next stage
+    d["next_stage"] = "extract_step_titles"
+    update_chains_db(d["id"], "next_stage", "extract_step_titles")
+
     return d
-
-
 
 
 def extract_step_titles(d):
 
-    update_chains_db(d["id"], "progress_stage", "Extracting titles for each step...")
+    ### Provide information on this stage
+    info = "Extracting titles for each step..."
+    print(info)
+    update_chains_db(d["id"], "progress_stage", info)
 
     print("Extracting steps titles...")
     # Initialize 'steps' if it doesn't exist
@@ -221,16 +205,22 @@ def extract_step_titles(d):
             "status": "pending"
             }
 
-
         # Write to database
         update_chains_db(d["id"], "plan", d["plan"])
 
+        # Update the next stage
+        d["next_stage"] = "elaborate_on_steps"
+        update_chains_db(d["id"], "next_stage", "elaborate_on_steps")
+
 def elaborate_on_steps(d):
 
-    update_chains_db(d["id"], "progress_stage", "Elaborating & extending each step of the plan to gain more details...")
+    info = "Elaborating & extending each step of the plan to gain more details..."
+    print(info)
+    update_chains_db(d["id"], "progress_stage", info)
 
 
     for i in range(1, d["plan"]["num_steps"] + 1):
+        
         # Update status
         d["plan"]["steps"][i]["status"] = "elaborating"
         update_chains_db(d["id"], "plan", d["plan"])
@@ -327,6 +317,44 @@ def elaborate_on_steps(d):
         update_chains_db(d["id"], "plan", d["plan"])
         update_chains_db(d["id"], "progress_pct", 2 + round( 6 / d["plan"]["num_steps"] * i)) 
     
+    d["next_stage"] = "execute_plan"
+    update_chains_db(d["id"], "next_stage", "execute_plan")
 
-    ### how should the last rounding look if an arbitraty number needs to be diviided into equal pieces to add up to 6?
-    ### 
+
+
+
+##################################################
+############ UNUSED FUNCTIONS #####################
+##################################################
+# ### Given the users prompt, please return a list of selected keywords that are relevant to the prompt
+# def categorize_content(d):
+#     print("Categorizing content...")
+#     d["exe_prompt"] = f"""Given the following user query:
+
+#     "{d['prompt']}"
+
+#     Please categorize the content of the query into one of the following categories:
+
+#     - Food
+#     - Technology
+#     - Pharmaceuticals
+#     - Medicine & Health
+#     - Mathematics
+#     - Physics
+#     - Chemistry
+#     - Biology
+#     - Computer Science
+#     - Engineering
+#     - History
+#     - Geography
+#     - Literature
+#     - Art
+#     - Sports
+#     - Politics
+#     - Entertainment
+
+#     And return just the single keyword that best describes the content of the query. Nothing but the keyword. What is the keyword?
+
+#     """
+
+#     d["category"] = query_llm(d)

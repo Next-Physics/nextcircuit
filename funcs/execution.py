@@ -34,6 +34,7 @@ def execute_plan(d):
 
     for step in d["plan"]["steps"]:
 
+        print(step)
         # Extract content from step
         content = step["content"]
 

@@ -6,16 +6,16 @@ import builtins
 from funcs.db_funcs import update_chains_db
 
 ### Importing Initialization functions ###
+from funcs.initialization import get_next_stage
 from funcs.initialization import setup_dirs
 from funcs.initialization import setup_dbs
-from funcs.initialization import submit_supplimentary_info
+from funcs.initialization import submit_attached_files_info
 from funcs.initialization import investigate_circumstances
 from funcs.initialization import generate_agent_title
 from funcs.initialization import generate_new_chain_id
 from funcs.initialization import create_chain_results_dir
 
 ### Importing Main Agent functions ###
-from funcs.planning import categorize_content
 from funcs.planning import create_elaboration_prompt
 from funcs.planning import propose_step_by_step_plan
 from funcs.planning import elaborate_on_steps
@@ -58,7 +58,8 @@ def main():
     d["port"] = args.port
     d["ip"] = args.ip
     d["api_key"] = args.api_key
-    d["chain_id"] = args.chain_id
+    d["id"] = args.chain_id
+    
     
     ############################################################
     #################### INITIALIZATION ########################
@@ -67,61 +68,67 @@ def main():
     # Move to directory
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    # Test for continuation on old chain
-    if d["chain_id"] != "None":
-        print(d)
-        
+    # Test for continuation of chain or new chain
+    get_next_stage(d)
 
     # List of directory names to create
     setup_dirs(os.path.dirname(os.path.abspath(__file__)),d)
 
+   # print(d)
     # Setup sqlite3 databases to store progress and data
     setup_dbs()
 
-    d["id"] = generate_new_chain_id()
+    if d["next_stage"] == "generate_new_chain_id":
 
-    # Set up chain_id results directory results/<chain_id>
-    create_chain_results_dir(d)
+        # Obtain a new chain id
+        d["id"] = generate_new_chain_id()
 
-    # Submit supplimentary information to the database
-    submit_supplimentary_info(d)
+        # Set up chain_id results directory results/<chain_id>
+        create_chain_results_dir(d)
+
+        # Submit supplimentary information to the database
+        submit_attached_files_info(d)
+
 
     # Overwrite print function to also log to 'history' in database
     builtins.print = create_print_with_logging(d["id"])
 
-    # Print identified input
-    print(d)
+    if d["next_stage"] == "generate_agent_title":
+        # Generate agent title
+        generate_agent_title(d)
+        
+    if d["next_stage"] == "create_elaboration_prompt":
+        # Elabroate on the prompt
+        create_elaboration_prompt(d)
 
-    # Generate agent title
-    generate_agent_title(d)
-    
-    # # Elabroate on the prompt
-    # update_chains_db(d["id"], "progress_stage", "Enriching user prompt for detailed understanding...")
-    # create_elaboration_prompt(d)
-    # update_chains_db(d["id"], "progress_pct", 1)
-
-    # Gather details on users physical hardware.
-    investigate_circumstances(d)
+    if d["next_stage"] == "investigate_circumstances":
+        # Gather details on users physical hardware.
+        investigate_circumstances(d)
 
     ############################################################
     ######################## PLANNING ##########################
     ############################################################
 
     # Propose a step-by-step plan for agent to follow
-    propose_step_by_step_plan(d)
+    if d["next_stage"] == "propose_step_by_step_plan":
+        propose_step_by_step_plan(d)
     
     # Extract the step titles
-    extract_step_titles(d)
-
+    if d["next_stage"] == "extract_step_titles":
+        extract_step_titles(d)
+    
     # Elaborate on each step of the plan
-    elaborate_on_steps(d)
+    if d["next_stage"] == "elaborate_on_steps":
+        elaborate_on_steps(d)
     
     #############################################################
     #################### EXECUTE PLAN ###########################
     #############################################################
 
-    # Start execution of the plan
-    execute_plan(d)
+    if d["next_stage"] == "execute_plan":
+        # Start execution of the plan
+        execute_plan(d)
+
 
 
 
