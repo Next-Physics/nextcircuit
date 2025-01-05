@@ -35,7 +35,7 @@ parser.add_argument('--api_key', type=str, default=None, help='Relevant API Key'
 parser.add_argument('--model', type=str, default=None, help='Model to use')
 parser.add_argument('--query', type=str, default='', help='Users query')
 parser.add_argument('--attached_files', type=str, default=None, help='Attached files')
-parser.add_argument('--chain_id', help='Chain ID to resume')
+parser.add_argument('--chain_id', default=None, help='Chain ID to resume')
 args = parser.parse_args()
 
 
@@ -64,9 +64,13 @@ def main():
     #################### INITIALIZATION ########################
     ############################################################
 
-    print(d["chain_id"])
     # Move to directory
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+    # Test for continuation on old chain
+    if d["chain_id"] != "None":
+        print(d)
+        
 
     # List of directory names to create
     setup_dirs(os.path.dirname(os.path.abspath(__file__)),d)
