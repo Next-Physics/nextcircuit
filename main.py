@@ -1,6 +1,9 @@
 ### Module imports ###
 import os, argparse, sys
 import builtins
+import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 ### Importing database update functions ###
 from funcs.db_funcs import update_chains_db
