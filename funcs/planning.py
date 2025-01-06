@@ -5,6 +5,8 @@ from funcs.db_funcs import update_chains_db
 
 def create_elaboration_prompt(d):
 
+    print("Original user prompt: ", d["prompt"],"\n")
+
     ### Provide information on this stage
     info = "Elaborating on user prompt..."
     print(info)
@@ -125,12 +127,22 @@ In practice: Next step of the program we will have another LLM elaborate further
     Avoid unnecessary or redundant steps.
     Minimize cost (avoid paid APIs if free alternatives exist).
     Double-check that data or files generated in one step are used or referenced accurately in later steps.
-    Lastly remember, the user will not take any action on the plan. The plan should be fully autonomous and executable using subsequence steps with bash and python code blocks.
-    I will show you the results of the execution so you can see if the plan is working as expected. We will step in the same step until it has been executed successfully.
+    Lastly remember, the user will not execute any step of the plan. The plan should be fully autonomous and executable using subsequence steps with bash and python code blocks.
+    I will show you the resulting execution of each code block so you can see if the plan is working as expected. We will step in the same step until it has been executed successfully.
     NEVER EVER end your output with leftover hidden steps like so **... (36 more steps)**.
     I repeat, NEVER EVER end the output with leftover hidden steps like so **... (36 more steps)**.
 
-5. PRIORITIZATION
+5. OUTPUT
+
+    At the end of each step of the plan, provide extremely specific file names and formats for the input and output of that step. This will ensure that the plan is executed correctly and efficiently.:
+    
+    For example:
+    Input: 'raw_data.csv'
+    Output: 'processed_data.pdf'
+
+    Be extremely specific with the naming of files and variables to ensure consistency. If no input is required, write None
+
+6. PRIORITIZATION
 
     If a task requires text generation or text analysis, ALWAYS use the function query_llm() with your query in d['exe_prompt'] rather than using traditional/other NLP methods. 
     Find the path of least resistance to achieve the goal (if the end results is 100% the same you may modify exclude, modify or add particular points mentioned by the user).
@@ -218,9 +230,10 @@ def elaborate_on_steps(d):
     print(info)
     update_chains_db(d["id"], "progress_stage", info)
 
-
     for i in range(1, d["plan"]["num_steps"] + 1):
         
+        if d["plan"]["steps"][i]["status"] == "elaborated":
+            continue
         # Update status
         d["plan"]["steps"][i]["status"] = "elaborating"
         update_chains_db(d["id"], "plan", d["plan"])

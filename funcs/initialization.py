@@ -24,20 +24,20 @@ def get_next_stage(d):
         chain_id = d["id"]
         conn = sqlite3.connect('db/main.db')
         c = conn.cursor()
-        query = f"SELECT { FROM chains WHERE id = ?"
+        query = f"SELECT {cols_to_fetch} FROM chains WHERE id = ?"
         c.execute(query, (chain_id,))
         cols = [col[0] for col in c.description]
-        res = c.fetchone()[0]
+        res = c.fetchone()
         conn.close()
 
         # Make dict from cols and res
-        res_dict = dict(zip(cols, res))
+        res_dict = dict(zip(cols,res)) 
 
-        d["next_stage"] = d["next_stage"]
-        d["plan"] = ast.literal_eval(res_dict["plan"])
-
-        print("Available information: ", d)
-
+        d["next_stage"] = res_dict["next_stage"]
+        if res_dict["plan"] is not None:
+            d["plan"] = ast.literal_eval(res_dict["plan"])
+        else:
+            d["plan"] = None
 
 ### Setup Directories to host the database and results ###
 def setup_dirs(script_folder,d):
@@ -56,8 +56,10 @@ def setup_dirs(script_folder,d):
             # Create the directory
             os.makedirs(dir_path)
 
-        if directory == "results":
+        if directory == "results" and d['next_stage'] == "generate_new_chain_id":
             d["results_dir"] = dir_path
+        else:
+            d["results_dir"] = os.path.join(dir_path, str(d["id"]))
 
 
 ### Setup sqlite3 databases to store progress and data###

@@ -1,4 +1,6 @@
 import re
+import time
+from funcs.db_funcs import update_chains_db
 from funcs.query_llm import query_llm
 
 def extract_code_blocks(content):
@@ -32,21 +34,25 @@ def execute_plan(d):
 
     update_chains_db(d["id"], "progress_stage", "Executing plan...")
 
-    for step in d["plan"]["steps"]:
+    for step,value in d["plan"]["steps"].items():
 
-        print(step)
-        # Extract content from step
-        content = step["content"]
+        d["plan"]["steps"][step]["status"] = "executing"
+        update_chains_db(d["id"], "plan", d["plan"])
 
-        print("CONTENT IS: ", content)
-        # Extract code blocks from content
-        code_blocks = extract_code_blocks(content)
+        elaboration = value["elaboration"]
+        print("ELABORATION: ", elaboration)
+
+        # Extract code blocks from elaboration
+        code_blocks = extract_code_blocks(elaboration)
         print("--------------------------------------------------------------------")
         for block in code_blocks:
             print("BLOCK IS: ", block)
 
         print("____________________________________________________________________")
-
+        
+        time.sleep(10)
+        d["plan"]["steps"][step]["status"] = "completed"
+        update_chains_db(d["id"], "plan", d["plan"])
         # step["status"] = query_llm(d)
         # print("Step Status: ", step["status"])
         # print("")
@@ -57,5 +63,5 @@ def execute_plan(d):
 #                "steps": [{"num": "Step Number",
 #                           "content": "Step Content",
 #                           "status": "Step Status"}]
-    update_chains_db(d["id"], "progress_stage", "Finished")
-    update_chains_db(d["id"], "progress_pct", 100)
+    # update_chains_db(d["id"], "progress_stage", "Finished")
+    # update_chains_db(d["id"], "progress_pct", 100)

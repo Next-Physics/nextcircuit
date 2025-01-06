@@ -1588,11 +1588,11 @@
       stepDiv.appendChild(headerDiv);
 
       // Show any in-progress bar, etc. (existing logic)
-      if (status === "elaborating" || status === "in_progress") {
+      if (status === "elaborating" || status === "executing") {
         const boldLine = document.createElement("div");
         boldLine.style.fontWeight = "bold";
         boldLine.textContent =
-          status === "elaborating" ? "Elaborating..." : "In progress...";
+          status === "elaborating" ? "Elaborating..." : "Executing...";
         stepDiv.appendChild(boldLine);
 
         const bar = document.createElement("div");
@@ -1658,7 +1658,7 @@
       switch (status) {
         case "pending":
           return "🔘";
-        case "in_progress":
+        case "executing":
         case "elaborating":
           return "⏳";
         case "elaborated":

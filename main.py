@@ -74,7 +74,6 @@ def main():
     # List of directory names to create
     setup_dirs(os.path.dirname(os.path.abspath(__file__)),d)
 
-   # print(d)
     # Setup sqlite3 databases to store progress and data
     setup_dbs()
 
