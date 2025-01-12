@@ -54,8 +54,6 @@ def debug_and_repair_code(d,block_num,block,e,step_num,traceback,attempts_log):
 
     print("\nError():", e)
     print("\nTraceback:", traceback, )
-    print("\nCode block:", block,"\n")
-
 
     part_one =  f"""You are an expert at investigating tracebacks, errors, debugging code and resolving code issues that might occour when running code blocks produced by an LLM agent.
 
@@ -130,17 +128,21 @@ def run_code_blocks(d,code_blocks, step_num,attempts_log):
                     exec(block[1], {**globals(), 'd': d})
 
                 captured_output = output_buffer.getvalue()
-                print("\nCaptured output:","\n",captured_output)
+               # print("\nCaptured output:","\n",captured_output)
 
 
             if "bash" in block[0]:
                 output = subprocess.run(block[1], shell=True, capture_output=True)
-                print("\nCaptured output:","\n",output.stdout.decode("utf-8"))
+               # print("\nCaptured output:","\n",output.stdout.decode("utf-8"))
 
     # Return True if the code block was successfully executed
             successful_executions += 1
 
         except Exception as e:
+            # Set specific step status to executing
+            d["plan"]["steps"][step_num]["status"] = "debugging"
+            update_chains_db(d["id"], "plan", d["plan"])
+
             debug_and_repair_code(d,block_num,block,e,step_num,traceback.format_exc(),attempts_log)
             return False
 
@@ -159,6 +161,10 @@ def execute_plan(d):
     # Loop through each step in the plan - use copy of keys (list) to avoid runtime error)
     for step_num in list(d["plan"]["steps"].keys()):
         
+
+        # Decide how many percent of the plan that has been executed
+        pct_complete = round(92 / len(d["plan"]["steps"]) * step_num)
+
         # Check if step is already completed
         if d["plan"]["steps"][step_num]["status"] == "completed":
             continue
@@ -174,12 +180,12 @@ def execute_plan(d):
         print(info)
         update_chains_db(d["id"], "progress_stage", info)
 
-        # SET SPECIFIC STEP STATUS
-        d["plan"]["steps"][step_num]["status"] = "executing"
-        update_chains_db(d["id"], "plan", d["plan"])
-
         # Attempt to execute the step until successful
         while step_success == False:
+
+            # Set specific step status to executing
+            d["plan"]["steps"][step_num]["status"] = "executing"
+            update_chains_db(d["id"], "plan", d["plan"])
 
             # Extract elaboration from the step
             elaboration = d["plan"]["steps"][step_num]["elaboration"]
@@ -210,8 +216,8 @@ def execute_plan(d):
         time.sleep(10)
         d["plan"]["steps"][step_num]["status"] = "completed"
         update_chains_db(d["id"], "plan", d["plan"])
+        update_chains_db(d["id"], "progress_pct", pct_complete+8)
 
 
-
-    # update_chains_db(d["id"], "progress_stage", "Finished")
-    # update_chains_db(d["id"], "progress_pct", 100)
+    update_chains_db(d["id"], "progress_stage", "Finished")
+    update_chains_db(d["id"], "progress_pct", 100)

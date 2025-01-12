@@ -1587,12 +1587,14 @@
       headerDiv.appendChild(titleSpan);
       stepDiv.appendChild(headerDiv);
 
-      // Show any in-progress bar, etc. (existing logic)
-      if (status === "elaborating" || status === "executing") {
+      if (status === "elaborating" || status === "executing" || status === "debugging") {
         const boldLine = document.createElement("div");
         boldLine.style.fontWeight = "bold";
-        boldLine.textContent =
-          status === "elaborating" ? "Elaborating..." : "Executing...";
+        if (status === "debugging") {
+          boldLine.textContent = "Debugging...";
+        } else {
+          boldLine.textContent = status === "elaborating" ? "Elaborating..." : "Executing...";
+        }
         stepDiv.appendChild(boldLine);
 
         const bar = document.createElement("div");
@@ -1611,14 +1613,19 @@
         fill.style.width = "100%";
         fill.style.borderRadius = "4px";
         fill.style.animation = "slowTravel 4s linear infinite";
-        fill.style.background =
-          status === "elaborating" ? "var(--warning-color)" : "var(--accent-color)";
+
+        if (status === "debugging") {
+          fill.style.background = "#ff8400";
+        } else if (status === "elaborating") {
+          fill.style.background = "var(--warning-color)";
+        } else {
+          fill.style.background = "var(--accent-color)";
+        }
 
         bar.appendChild(fill);
         stepDiv.appendChild(bar);
       }
     } else {
-      // placeholder if step is missing
       iconSpan.textContent = "🔘";
       const titleSpan = document.createElement("span");
       titleSpan.textContent = `Step ${i}) ... (awaiting title)`;
@@ -1629,7 +1636,6 @@
     container.appendChild(stepDiv);
   }
 }
-
 
     function renderPlanStepsPlaceholder() {
       const container = document.getElementById("plan_steps_container");
@@ -1658,6 +1664,8 @@
       switch (status) {
         case "pending":
           return "🔘";
+        case "debugging":
+          return "🛠️";
         case "executing":
         case "elaborating":
           return "⏳";
