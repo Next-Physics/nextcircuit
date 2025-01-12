@@ -86,10 +86,11 @@ The user’s request is as follows:
 2. TASK ANALYSIS
 
 Given the users request, you should:
-    Break down the goal into clear sub-goals or deliverables.
+    Break down the goal into clear sub-goals or deliverables (but don't over do it).
     Identify resources needed—digital, physical, human, or otherwise.
     Generate a step-by-step plan that logically addresses and completes each sub-goal.
     Keep in mind you capabilities as mentioned previously (e.g., LLM queries, API access, local storage, etc.).
+    Keep in mind Dependencies / Prerequisites
     Use unique numbering for steps (e.g., **Step 1: some task**, **Step 2: another task**, etc.).
 
 In doing so, remember to tailor the depth and complexity of your plan based on the complexity of the request:
@@ -104,7 +105,6 @@ When crafting your step-by-step plan, include:
     Over all actions: A bullet point view of all the actions to be carried.
     Proposal of which tools, APIs, search engines, or local queries you will use
     Indication of the order and logical flow of tasks, and note approximate time if relevant.
-    Dependencies / Prerequisites: Note if any steps must be completed before others can begin.
     Validation & Checks: Specify how to verify correctness or completion (e.g., verifying a file was created correctly, confirming a purchase, or obtaining final user approval).
     Logic representation 
 
@@ -125,6 +125,7 @@ In practice: Next step of the program we will have another LLM elaborate further
     For any steps requiring human interaction, ensure instructions for communication are clear, empathetic, and effective.
     Maintain clarity and simplicity, especially if the user is not highly technical.
     Avoid unnecessary or redundant steps.
+    You should merge steps where possible to minimize complexity.
     Minimize cost (avoid paid APIs if free alternatives exist).
     Double-check that data or files generated in one step are used or referenced accurately in later steps.
     Lastly remember, the user will not execute any step of the plan. The plan should be fully autonomous and executable using subsequence steps with bash and python code blocks.
@@ -141,6 +142,7 @@ In practice: Next step of the program we will have another LLM elaborate further
     Output: 'processed_data.pdf'
 
     Be extremely specific with the naming of files and variables to ensure consistency. If no input is required, write None
+    Never EVER assume a variable simply can transferred as output, if needed in next step, save it to a file and read it in the next step.
 
 6. PRIORITIZATION
 
@@ -286,9 +288,10 @@ def elaborate_on_steps(d):
         - List any tools, libraries, or data sources required, and how to install or import them.
         - Clearly specify how to save results in the folder {d['results_dir']} for use in subsequent steps.
 
-        f. **Output Passing**  
+        f. **Outputs and transfering of information **  
+        - Use consistent file paths, and remeber to save results to {d['results_dir']} so that the next step can access the results.
+        - NEVER end on a variable, always save the variable to a file if a following step needs it.
         - Explicitly mention how to pass or store the outputs (e.g., variables, files) so subsequent steps can use them.
-        - Use consistent file paths, especially those referencing {d['results_dir']}.
 
         **Important**:  
         - Ensure choerence between current step and the surrounding steps.

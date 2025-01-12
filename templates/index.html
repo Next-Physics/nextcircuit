@@ -781,6 +781,7 @@
     </div>
   </div>
 
+  <!-- All business logic preserved below -->
   <script>
     let eventSource = null;
     let timerInterval = null;
@@ -1101,9 +1102,7 @@
     }
 
     function startAgent() {
-      // Remove the line that closes any existing SSE so we don't cut off a new chain's SSE prematurely.
-      // if (eventSource) eventSource.close();  <-- Commented out to preserve SSE from main.
-
+      if (eventSource) eventSource.close();
       if (agentRunning) return;
 
       document.getElementById("user_query").disabled = true;
@@ -1187,15 +1186,14 @@
       showStopButton();
       showMainProgressBar();
 
-      // Poll for a newly created conversation ID. Once discovered,
-      // we automatically load it so the user sees the new conversation in real-time.
+      // Poll for new conversation (i.e. a new chain) if chainArg was "None"
       if (conversationInterval) clearInterval(conversationInterval);
-      conversationInterval = setInterval(checkForNewConversation, 2000);
+      conversationInterval = setInterval(checkForNewConversation, 1000);
 
       renderPlanStepsPlaceholder();
 
       if (progressInterval) clearInterval(progressInterval);
-      progressInterval = setInterval(fetchProgress, 2000);
+      progressInterval = setInterval(fetchProgress, 1000);
       fetchProgress();
     }
 
@@ -1215,23 +1213,24 @@
                 hour: "2-digit",
                 minute: "2-digit",
               });
-              addConversationToSidebar(c.id, c.title || `New chat ${nowStr}`);
+              addConversationToSidebar(c.id, `New chat ${nowStr}`);
               initialConversations.push(String(c.id));
               activeChainId = c.id;
 
-              // Immediately load the new conversation so the user doesn't have to click it.
-              loadConversation(c.id);
-
+              // Start plan polling, fetch attached files, rename folder
               startPlanPolling();
               pollChainTitle();
-              foundNew = true;
-
               fetchAttachedFiles(c.id);
 
               if (!folderRenamed && c.id !== "None") {
                 renameNoneFolderTo(c.id);
                 folderRenamed = true;
               }
+
+              // *** Automatically focus and load this new conversation in the UI! ***
+              loadConversation(c.id);
+
+              foundNew = true;
             }
           }
 
@@ -1276,7 +1275,7 @@
         pollChainTitle();
 
         if (progressInterval) clearInterval(progressInterval);
-        progressInterval = setInterval(fetchProgress, 2000);
+        progressInterval = setInterval(fetchProgress, 1000);
         fetchProgress();
       };
 
@@ -1400,7 +1399,7 @@
     }
 
     function loadConversation(id) {
-      // Do not close the existing eventSource; we want to keep SSE updates going for the active chain.
+      // We do NOT close or re-init SSE here; let SSE remain if it is actively streaming.
       fetch("/get_conversation", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -1426,7 +1425,7 @@
 
           // Poll progress
           if (progressInterval) clearInterval(progressInterval);
-          progressInterval = setInterval(fetchProgress, 2000);
+          progressInterval = setInterval(fetchProgress, 1000);
           fetchProgress();
         });
     }
@@ -1499,7 +1498,7 @@
     function startPlanPolling() {
       if (planInterval) clearInterval(planInterval);
       if (activeChainId) {
-        planInterval = setInterval(fetchPlanSteps, 2000);
+        planInterval = setInterval(fetchPlanSteps, 1000);
         fetchPlanSteps();
       }
       refreshResults();
@@ -1517,8 +1516,6 @@
           }
 
           const plan = data.plan;  // This might have { overview, num_steps, steps }
-
-          // If there's no num_steps, just keep it minimal
           if (!plan.num_steps) {
             showAwaitingPlan();
             lastPlanData = plan;
@@ -1526,7 +1523,6 @@
           }
 
           lastPlanData = plan;
-          // Pass the entire plan object to our render function.
           renderPlanSteps(plan);
         })
         .catch((err) => console.error(err));
@@ -1553,7 +1549,7 @@
 
         const iconSpan = document.createElement("span");
         iconSpan.className = "step-icon";
-        iconSpan.textContent = "🌐"; 
+        iconSpan.textContent = "🌐";
 
         const titleSpan = document.createElement("span");
         titleSpan.textContent = "Overview";
@@ -1701,7 +1697,6 @@
         return;
       }
 
-      // Otherwise, handle numeric step
       if (!lastPlanData || !lastPlanData.steps || !lastPlanData.steps[stepIndex]) {
         showStepModal(`Step ${stepIndex}`, "No elaboration available.");
         return;
@@ -1834,7 +1829,7 @@
           }
         });
     }
-    setInterval(refreshResults, 5000);
+    setInterval(refreshResults, 1000);
 
     /* PROGRESS POLLING */
     function fetchProgress() {

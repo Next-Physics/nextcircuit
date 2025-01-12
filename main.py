@@ -99,6 +99,7 @@ def main():
         # Generate agent title
         generate_agent_title(d)
         
+     #   d["next_stage"] = "investigate_circumstances"
     if d["next_stage"] == "create_elaboration_prompt":
         # Elabroate on the prompt
         create_elaboration_prompt(d)

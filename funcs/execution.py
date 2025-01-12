@@ -53,7 +53,7 @@ def debug_and_repair_code(d,block_num,block,e,step_num,traceback,attempts_log):
     print("Something went wrong while executing the code block. Debugging and repairing...")
 
     print("\nError():", e)
-    print("\nTraceback:", traceback, )
+    #print("\nTraceback:", traceback, )
 
     part_one =  f"""You are an expert at investigating tracebacks, errors, debugging code and resolving code issues that might occour when running code blocks produced by an LLM agent.
 
@@ -82,13 +82,15 @@ def debug_and_repair_code(d,block_num,block,e,step_num,traceback,attempts_log):
     part_two = f"""Please rewrite the entire revised elaboration of step {step_num} as needed in order for the code to run without errors.
     
     Keep in mind:
-    - If new packages are needed, please import / install them as needed. 
+    - Ensure all referenced files are called from correct paths. Many files are located in {d['results_dir']}.
+    - If new packages are needed, please import / install them as needed.
     - Ensure to correct naming of input and output variables as needed.
-    - Introduce new code blocks as needed.
+    - Introduce new code blocks as needed using code blocks using apostrophes like for example ```python \n some code```.
+    
 
     Please return the fully revised elaboration of step {step_num}:
 
-    """ 
+    """
 
 
     d['exe_prompt'] = part_one + part_two
@@ -119,7 +121,16 @@ def run_code_blocks(d,code_blocks, step_num,attempts_log):
 
     # Then, attempt to execute the code block
         try:
+            # if "python" in block[0]:
+            #     output_buffer = io.StringIO()
+            #     exec_locals = {**globals()}
+            #     exec_locals['d'] = d
 
+            #     with contextlib.redirect_stdout(output_buffer):
+            #         exec(block[1], exec_locals)
+
+            #     d = exec_locals['d']
+            #     captured_output = output_buffer.getvalue()
             if "python" in block[0]:
 
                 output_buffer = io.StringIO()
@@ -166,6 +177,7 @@ def execute_plan(d):
 
         # Check if step is already completed
         if d["plan"]["steps"][step_num]["status"] == "completed":
+            print(step_num, "is already completed")
             continue
 
         # set default step success 

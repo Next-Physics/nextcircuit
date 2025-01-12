@@ -1,0 +1,32 @@
+[
+    {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/",
+        "focus": "Biomedical literature, including oncolytic viruses"
+    },
+    {
+        "name": "Google Scholar",
+        "url": "https://scholar.google.com/",
+        "focus": "Scholarly articles across disciplines, including oncolytic viruses"
+    },
+    {
+        "name": "ScienceDirect",
+        "url": "https://www.sciencedirect.com/",
+        "focus": "Scientific and technical research articles"
+    },
+    {
+        "name": "SpringerLink",
+        "url": "https://link.springer.com/",
+        "focus": "Life sciences and biomedical articles"
+    },
+    {
+        "name": "Wiley Online Library",
+        "url": "https://onlinelibrary.wiley.com/",
+        "focus": "Research articles across various domains, including oncolytic viruses"
+    },
+    {
+        "name": "Frontiers in Oncology",
+        "url": "https://www.frontiersin.org/journals/oncology",
+        "focus": "Open access journal focused on oncology"
+    }
+]
