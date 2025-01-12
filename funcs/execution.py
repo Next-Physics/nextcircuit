@@ -130,7 +130,6 @@ def run_code_blocks(d,code_blocks, step_num,attempts_log):
                 captured_output = output_buffer.getvalue()
                # print("\nCaptured output:","\n",captured_output)
 
-
             if "bash" in block[0]:
                 output = subprocess.run(block[1], shell=True, capture_output=True)
                # print("\nCaptured output:","\n",output.stdout.decode("utf-8"))
