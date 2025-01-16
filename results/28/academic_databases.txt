@@ -1,6 +1,0 @@
-PubMed: https://pubmed.ncbi.nlm.nih.gov/
-JSTOR: https://www.jstor.org/
-ResearchGate: https://www.researchgate.net/
-SpringerLink: https://link.springer.com/
-ScienceDirect: https://www.sciencedirect.com/
-Wiley Online Library: https://onlinelibrary.wiley.com/

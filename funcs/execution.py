@@ -67,24 +67,26 @@ def debug_and_repair_code(d,block_num,block,e,step_num,traceback,attempts_log):
 
     {d['plan']['steps'][step_num]['elaboration']}
 
-    However when trying to execute the codeblock below: 
+    However upon executing the codeblock: 
 
     '''
     {block}
     '''
 
 
-    I got the error:  {e}
+    We got error:  {e}
 
-    And we got traceback.format_exc(): {traceback}
+    And from traceback.print_exc() we got:\n {traceback.print_exc()}
+    
     """
     
-    part_two = f"""Please rewrite the entire revised elaboration of step {step_num} as needed in order for the code to run without errors.
+    part_two = f"""Please fix this error by rewrite the entire revised elaboration of step {step_num} as needed in order for the code to run without errors.
     
     Keep in mind:
     - Ensure all referenced files are called from correct paths. Many files are located in {d['results_dir']}.
     - If new packages are needed, please import / install them as needed.
     - Ensure to correct naming of input and output variables as needed.
+    - Avoid using try and except. Instead, let the code fail so an error message can be generated.
     - Introduce new code blocks as needed using code blocks using apostrophes like for example ```python \n some code```.
     
 

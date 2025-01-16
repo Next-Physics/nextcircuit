@@ -1,9 +1,0 @@
-# Literature Review on Oncolytic Viruses in Cancer Therapy
-## Introduction
-Oncolytic viruses are emerging as a promising therapeutic approach in cancer treatment, leveraging their ability to selectively infect and kill cancer cells while eliciting an immune response. This literature review compiles key findings from recent studies to elucidate the mechanisms and efficacy of oncolytic viruses in cancer therapy.
-
-## Key Findings
-- Title	Abstract	Findings	Methodologies	Implications
-
-## Implications
-The findings in this review highlight the potential of oncolytic viruses to transform cancer therapy, necessitating further exploration and clinical trials to establish their effectiveness and safety in diverse cancer types.
