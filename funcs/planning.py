@@ -148,6 +148,7 @@ In practice: Next step of the program we will have another LLM elaborate further
 
     If a task requires text generation or text analysis, ALWAYS use the function query_llm() with your query in d['exe_prompt'] rather than using traditional/other NLP methods. 
     Find the path of least resistance to achieve the goal (if the end results is 100% the same you may modify exclude, modify or add particular points mentioned by the user).
+    Avoid using try and except inside code blocks.
 
     """
 
@@ -289,7 +290,7 @@ def elaborate_on_steps(d):
         - Clearly specify how to save results in the folder {d['results_dir']} for use in subsequent steps.
 
         f. **Outputs and transfering of information **  
-        - Use consistent file paths, and remeber to save results to {d['results_dir']} so that the next step can access the results.
+        - Use consistent file paths, and remember to save results to {d['results_dir']} so that the next step can access the results.
         - NEVER end on a variable, always save the variable to a file if a following step needs it.
         - Explicitly mention how to pass or store the outputs (e.g., variables, files) so subsequent steps can use them.
 
@@ -298,6 +299,8 @@ def elaborate_on_steps(d):
         - Any code for this step must be placed inside a single fenced code block if the lines are interdependent.  
         - Avoid splitting related Python code, as we run each fenced code block in isolation.  
         - Keep the number of fenced code blocks minimal for each step.
+        - Code must include logical checks to ensure the desire output is achieved.
+
 
         - Example usage of the function query_llm along with a local file:
         ```python

@@ -1,4 +1,4 @@
-import re
+import re,sys
 import time
 import subprocess
 import traceback
@@ -53,7 +53,7 @@ def debug_and_repair_code(d,block_num,block,e,step_num,traceback,attempts_log):
     print("Something went wrong while executing the code block. Debugging and repairing...")
 
     print("\nError():", e)
-    #print("\nTraceback:", traceback, )
+
 
     part_one =  f"""You are an expert at investigating tracebacks, errors, debugging code and resolving code issues that might occour when running code blocks produced by an LLM agent.
 
@@ -76,18 +76,18 @@ def debug_and_repair_code(d,block_num,block,e,step_num,traceback,attempts_log):
 
     We got error:  {e}
 
-    And from traceback.print_exc() we got:\n {traceback.print_exc()}
-    
+    And from traceback.format_exc() we got:\n {traceback}
+
     """
     
     part_two = f"""Please fix this error by rewrite the entire revised elaboration of step {step_num} as needed in order for the code to run without errors.
     
-    Keep in mind:
+    Important notes:
     - Ensure all referenced files are called from correct paths. Many files are located in {d['results_dir']}.
     - If new packages are needed, please import / install them as needed.
     - Ensure to correct naming of input and output variables as needed.
     - Avoid using try and except. Instead, let the code fail so an error message can be generated.
-    - Introduce new code blocks as needed using code blocks using apostrophes like for example ```python \n some code```.
+    - Introduce new code blocks as needed using apostrophes like for example ```python \n some code```.
     
 
     Please return the fully revised elaboration of step {step_num}:
@@ -123,16 +123,7 @@ def run_code_blocks(d,code_blocks, step_num,attempts_log):
 
     # Then, attempt to execute the code block
         try:
-            # if "python" in block[0]:
-            #     output_buffer = io.StringIO()
-            #     exec_locals = {**globals()}
-            #     exec_locals['d'] = d
 
-            #     with contextlib.redirect_stdout(output_buffer):
-            #         exec(block[1], exec_locals)
-
-            #     d = exec_locals['d']
-            #     captured_output = output_buffer.getvalue()
             if "python" in block[0]:
 
                 output_buffer = io.StringIO()
@@ -151,6 +142,9 @@ def run_code_blocks(d,code_blocks, step_num,attempts_log):
             successful_executions += 1
 
         except Exception as e:
+
+           # traceback_str = ''.join(traceback.format_tb(e.__traceback__))
+
             # Set specific step status to executing
             d["plan"]["steps"][step_num]["status"] = "debugging"
             update_chains_db(d["id"], "plan", d["plan"])
