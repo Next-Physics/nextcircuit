@@ -134,6 +134,18 @@
       opacity: 1;
     }
 
+    /* Shining effect for the actively running conversation */
+    @keyframes shine {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+    .shining-title {
+      animation: shine 2s linear infinite;
+      background: linear-gradient(130deg, #1b1b1b, #6c7a7b, #181818);
+      background-size: 200% auto;
+      color: #fff !important;
+    }
+
     /* MAIN AREA */
     .main {
       position: relative;
@@ -201,6 +213,13 @@
     }
     .top-bar .stop-button:hover {
       background: var(--danger-hover);
+    }
+    .top-bar .disabled-button {
+      background: #555;
+      cursor: not-allowed;
+    }
+    .top-bar .disabled-button:hover {
+      background: #555;
     }
     .top-bar .timer {
       font-size: var(--font-size-sm);
@@ -316,11 +335,31 @@
       font-family: "Inter", sans-serif;
       font-size: var(--font-size-sm);
       box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+      position: relative; /* so we can place a button top-right */
     }
-    .results-box h4 {
-      margin-top: 0;
-      font-size: var(--font-size-md);
+    .results-box-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 10px;
+    }
+    .results-box-header h4 {
+      margin: 0;
+      font-size: var(--font-size-md);
+    }
+    .explorer-btn {
+      background: #555;
+      border: none;
+      border-radius: var(--border-radius);
+      padding: 6px 10px;
+      color: #fff;
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: background 0.2s;
+      display: none; /* hidden by default; show when files > 0 */
+    }
+    .explorer-btn:hover {
+      background: #666;
     }
     .results-list {
       list-style: none;
@@ -335,6 +374,7 @@
       font-size: var(--font-size-sm);
       word-wrap: break-word;
       break-inside: avoid;
+      cursor: pointer;
     }
 
     /* OVERALL PROGRESS (below results) */
@@ -632,6 +672,71 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
+
+    /* FILE PREVIEW MODAL */
+    .file-preview-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9001;
+    }
+    .file-preview-overlay.active {
+      display: flex;
+    }
+    .file-preview-box {
+      background: #2c2c2c;
+      border-radius: var(--border-radius);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      color: var(--text-color);
+      position: relative;
+      max-height: 90vh;
+      width: 90%;
+      max-width: 800px;
+      overflow-y: auto;
+      border: 1px solid #444;
+      display: flex;
+      flex-direction: column;
+    }
+    .file-preview-header {
+      position: sticky;
+      top: 0;
+      background: #2c2c2c;
+      padding: 10px 20px;
+      z-index: 3;
+      border-bottom: 1px solid #444;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .file-preview-header h4 {
+      margin: 0;
+      font-size: var(--font-size-md);
+      color: #fff;
+    }
+    .file-preview-header .close-btn {
+      background: transparent;
+      border: none;
+      font-size: var(--font-size-lg);
+      cursor: pointer;
+      color: #aaa;
+      transition: color 0.2s;
+    }
+    .file-preview-header .close-btn:hover {
+      color: #fff;
+    }
+    .file-preview-body {
+      padding: 20px;
+      overflow-x: auto;
+    }
+    .no-preview {
+      color: #ccc;
+    }
   </style>
 </head>
 
@@ -696,6 +801,7 @@
         </div>
 
         <input type="text" id="user_query" placeholder="Enter your query..." />
+        <!-- We'll show/hide these dynamically -->
         <button id="start_agent_btn" onclick="startAgent()">Start Agent</button>
         <button
           id="stop_agent_btn"
@@ -704,6 +810,13 @@
           style="display:none;"
         >
           Stop Agent
+        </button>
+        <button
+          id="disabled_agent_btn"
+          class="disabled-button"
+          style="display:none;"
+        >
+          Another agent is running...
         </button>
 
         <div class="timer">
@@ -729,8 +842,12 @@
       <!-- SPLIT VIEW -->
       <div class="split-view">
         <div class="output-area" id="output_area"></div>
+
         <div class="results-box">
-          <h4>Results</h4>
+          <div class="results-box-header">
+            <h4>Results</h4>
+            <button class="explorer-btn" id="explorer_btn" onclick="triggerExplorer()">Open Folder</button>
+          </div>
           <ul class="results-list" id="results_list"></ul>
         </div>
 
@@ -781,6 +898,17 @@
     </div>
   </div>
 
+  <!-- FILE PREVIEW MODAL -->
+  <div class="file-preview-overlay" id="file_preview_overlay">
+    <div class="file-preview-box">
+      <div class="file-preview-header">
+        <h4 id="file_preview_title"></h4>
+        <button class="close-btn" onclick="closeFilePreview()">✕</button>
+      </div>
+      <div class="file-preview-body" id="file_preview_body"></div>
+    </div>
+  </div>
+
   <!-- All business logic preserved below -->
   <script>
     let eventSource = null;
@@ -790,7 +918,8 @@
     let chainIdToDelete = null;
     let agentRunning = false;
     let initialConversations = [];
-    let activeChainId = null;
+    let activeChainId = null; // The chain that is *currently loaded in the UI*
+    let runningChainId = null; // The chain that has an *active agent* (if any)
     let planInterval = null;
     let titleInterval = null;
     let conversationInterval = null;
@@ -817,17 +946,57 @@
       if (savedModel) document.getElementById("chatgpt_model").value = savedModel;
 
       initialConversations = getCurrentConversationIds();
-      updateStartButtonLabel();
+      updateAgentControls(); // Decide which buttons to show/hide
     });
-
-    function updateStartButtonLabel() {
-      const btn = document.getElementById("start_agent_btn");
-      btn.textContent = agentEverStarted ? "Continue Agent" : "Start Agent";
-    }
 
     function getCurrentConversationIds() {
       const items = document.querySelectorAll(".conversation-item[data-chain-id]");
       return Array.from(items).map((i) => i.getAttribute("data-chain-id"));
+    }
+
+    function highlightActiveConversation(chainId) {
+      // Remove .shining-title from all conversation items
+      const allItems = document.querySelectorAll(".conversation-item");
+      allItems.forEach((item) => {
+        item.classList.remove("shining-title");
+      });
+
+      if (!chainId) return;
+      // Add .shining-title to the item with matching data-chain-id
+      const item = document.querySelector(`.conversation-item[data-chain-id='${chainId}']`);
+      if (item) {
+        item.classList.add("shining-title");
+      }
+    }
+
+    function updateAgentControls() {
+      const startBtn = document.getElementById("start_agent_btn");
+      const stopBtn = document.getElementById("stop_agent_btn");
+      const disabledBtn = document.getElementById("disabled_agent_btn");
+
+      if (agentRunning) {
+        if (activeChainId === runningChainId) {
+          // show stop
+          stopBtn.style.display = "inline-block";
+          startBtn.style.display = "none";
+          disabledBtn.style.display = "none";
+          highlightActiveConversation(runningChainId);
+        } else {
+          // show disabled
+          stopBtn.style.display = "none";
+          startBtn.style.display = "none";
+          disabledBtn.style.display = "inline-block";
+          // highlight the running conversation
+          highlightActiveConversation(runningChainId);
+        }
+      } else {
+        // no agent running
+        stopBtn.style.display = "none";
+        disabledBtn.style.display = "none";
+        startBtn.style.display = "inline-block";
+        startBtn.textContent = agentEverStarted ? "Continue Agent" : "Start Agent";
+        highlightActiveConversation(null);
+      }
     }
 
     function newAgent() {
@@ -836,7 +1005,6 @@
       document.getElementById("user_query").disabled = false;
       attachedFiles = [];
       stopAgentIfRunning();
-      showStartButton();
       resetTimer();
       renderPlanSteps([]);
       activeChainId = null;
@@ -846,12 +1014,13 @@
       agentEverStarted = false;
       folderRenamed = false;
 
-      updateStartButtonLabel();
       resetProgressIndicators();
 
       // Make attachments editable again
       setFileAttachmentsEditable(true);
       renderAttachedFiles();
+
+      updateAgentControls();
     }
 
     function resetProgressIndicators() {
@@ -1105,6 +1274,7 @@
       if (eventSource) eventSource.close();
       if (agentRunning) return;
 
+      runningChainId = activeChainId; // The conversation about to run
       document.getElementById("user_query").disabled = true;
       // Once we start agent, attachments become read-only
       setFileAttachmentsEditable(false);
@@ -1165,14 +1335,15 @@
             clearInterval(timerInterval);
             timerInterval = null;
           }
-          showStartButton();
-          hideMainProgressBar();
           agentRunning = false;
+          runningChainId = null;
+          hideMainProgressBar();
 
           if (progressInterval) {
             clearInterval(progressInterval);
             progressInterval = null;
           }
+          updateAgentControls();
         } else {
           document.getElementById("output_area").textContent += e.data + "\n";
           const output = document.getElementById("output_area");
@@ -1182,13 +1353,24 @@
 
       agentRunning = true;
       if (!agentEverStarted) agentEverStarted = true;
-      updateStartButtonLabel();
-      showStopButton();
+      updateAgentControls();
       showMainProgressBar();
 
+      // Add a conversation-item for "None" if not exists and highlight it
+      if (chainArg === "None") {
+        const existing = document.querySelector(`.conversation-item[data-chain-id='None']`);
+        if (!existing) {
+          addConversationToSidebar('None', `New Agent | None`);
+          initialConversations.push('None');
+        }
+        highlightActiveConversation('None');
+      }
+
       // Poll for new conversation (i.e. a new chain) if chainArg was "None"
-      if (conversationInterval) clearInterval(conversationInterval);
-      conversationInterval = setInterval(checkForNewConversation, 1000);
+      if (chainArg === "None") {
+        if (conversationInterval) clearInterval(conversationInterval);
+        conversationInterval = setInterval(checkForNewConversation, 1000);
+      }
 
       renderPlanStepsPlaceholder();
 
@@ -1216,7 +1398,7 @@
               addConversationToSidebar(c.id, `New chat ${nowStr}`);
               initialConversations.push(String(c.id));
               activeChainId = c.id;
-
+              runningChainId = c.id;
               // Start plan polling, fetch attached files, rename folder
               startPlanPolling();
               pollChainTitle();
@@ -1226,7 +1408,6 @@
                 renameNoneFolderTo(c.id);
                 folderRenamed = true;
               }
-
 
               foundNew = true;
             }
@@ -1268,13 +1449,6 @@
       titleDiv.textContent = `${title} | ${chain_id}`;
       titleDiv.onclick = () => {
         loadConversation(chain_id);
-        activeChainId = chain_id;
-        startPlanPolling();
-        pollChainTitle();
-
-        if (progressInterval) clearInterval(progressInterval);
-        progressInterval = setInterval(fetchProgress, 1000);
-        fetchProgress();
       };
 
       const deleteDiv = document.createElement("div");
@@ -1349,14 +1523,16 @@
               clearInterval(timerInterval);
               timerInterval = null;
             }
-            showStartButton();
-            hideMainProgressBar();
             agentRunning = false;
+            runningChainId = null;
+            hideMainProgressBar();
 
             if (progressInterval) {
               clearInterval(progressInterval);
               progressInterval = null;
             }
+            highlightActiveConversation(null);
+            updateAgentControls();
           }
         });
     }
@@ -1377,16 +1553,6 @@
       if (bar) bar.style.display = "none";
     }
 
-    function showStartButton() {
-      document.getElementById("start_agent_btn").style.display = "inline-block";
-      document.getElementById("stop_agent_btn").style.display = "none";
-    }
-
-    function showStopButton() {
-      document.getElementById("start_agent_btn").style.display = "none";
-      document.getElementById("stop_agent_btn").style.display = "inline-block";
-    }
-
     function resetTimer() {
       document.getElementById("timer_value").textContent = "00:00:00";
       startTime = null;
@@ -1397,7 +1563,12 @@
     }
 
     function loadConversation(id) {
-      // We do NOT close or re-init SSE here; let SSE remain if it is actively streaming.
+      if (conversationInterval) {
+        clearInterval(conversationInterval);
+        conversationInterval = null;
+      }
+
+      activeChainId = id;
       fetch("/get_conversation", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -1408,20 +1579,18 @@
           document.getElementById("output_area").textContent =
             data.history || "No history found.";
           document.getElementById("user_query").value = data.user_query || "";
-          document.getElementById("user_query").disabled = true;
+          document.getElementById("user_query").disabled = true; // loaded old conversation
 
-          activeChainId = id;
-          pollChainTitle();
-          startPlanPolling();
-
-          agentEverStarted = true;
-          updateStartButtonLabel();
+          agentEverStarted = true; // Means there's some existing data
+          updateAgentControls();
 
           const attachedFilesData = JSON.parse(data.attached_files);
           attachedFiles = attachedFilesData.map((fileObj) => fileObj);
           setFileAttachmentsEditable(false);
 
-          // Poll progress
+          pollChainTitle();
+          startPlanPolling();
+
           if (progressInterval) clearInterval(progressInterval);
           progressInterval = setInterval(fetchProgress, 1000);
           fetchProgress();
@@ -1470,6 +1639,10 @@
               document.getElementById("conversation_title").textContent = "";
               resetProgressIndicators();
             }
+            if (runningChainId === chainIdToDelete) {
+              // We forcibly stop if that chain was running
+              stopAgentIfRunning();
+            }
           }
           closeDeleteModal();
         })
@@ -1479,7 +1652,7 @@
     }
 
     function updateTimer() {
-      if (!startTime) return;
+      if (!startTime) startTime = Date.now();
       const elapsed = Date.now() - startTime;
       const hrs = Math.floor(elapsed / 3600000);
       const mins = Math.floor((elapsed % 3600000) / 60000);
@@ -1750,7 +1923,7 @@
       marked.setOptions({
         breaks: true,
         highlight: function(code, lang) {
-          if (Prism.languages[lang]) {
+          if (Prism && Prism.languages[lang]) {
             return Prism.highlight(code, Prism.languages[lang], lang);
           }
           return code;
@@ -1793,7 +1966,7 @@
 
         pre.appendChild(copyButton);
 
-        if (block.className) {
+        if (block.className && Prism) {
           Prism.highlightElement(block);
         }
       });
@@ -1813,17 +1986,23 @@
         .then((res) => res.json())
         .then((files) => {
           const list = document.getElementById("results_list");
+          const explorerBtn = document.getElementById("explorer_btn");
+
           list.innerHTML = "";
           if (!files || files.length === 0) {
             const li = document.createElement("li");
             li.textContent = "No files found.";
+            li.style.cursor = "default";
             list.appendChild(li);
+            explorerBtn.style.display = "none"; // Hide if no files
           } else {
             files.forEach((file) => {
               const li = document.createElement("li");
               li.textContent = file;
+              li.onclick = () => openFilePreview(file);
               list.appendChild(li);
             });
+            explorerBtn.style.display = "inline-block"; // Show if files exist
           }
         });
     }
@@ -1846,6 +2025,130 @@
           progressFill.style.width = `${pct}%`;
         })
         .catch((err) => console.error(err));
+    }
+
+    /* FILE PREVIEW MODAL */
+    function openFilePreview(filename) {
+      if (!activeChainId) return;
+      const overlay = document.getElementById("file_preview_overlay");
+      const titleEl = document.getElementById("file_preview_title");
+      const bodyEl = document.getElementById("file_preview_body");
+
+      titleEl.textContent = filename;
+      bodyEl.innerHTML = "Loading file content...";
+
+      overlay.classList.add("active");
+
+      fetch(`/preview_file?chain_id=${activeChainId}&filename=${encodeURIComponent(filename)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.status !== "ok") {
+            bodyEl.innerHTML = `<p class="no-preview">${data.message || "Error loading file."}</p>`;
+            return;
+          }
+          const fileType = data.fileType;
+          const content = data.content;
+
+          if (fileType === "text") {
+            // Show as code block
+            const pre = document.createElement("pre");
+            pre.style.whiteSpace = "pre-wrap";
+            const code = document.createElement("code");
+            code.textContent = content;
+            pre.appendChild(code);
+            bodyEl.innerHTML = "";
+            bodyEl.appendChild(pre);
+          }
+          else if (fileType === "json") {
+            // pretty-print
+            bodyEl.innerHTML = "";
+            try {
+              const parsed = JSON.parse(content);
+              const formatted = JSON.stringify(parsed, null, 2);
+              const pre = document.createElement("pre");
+              pre.style.whiteSpace = "pre-wrap";
+              const code = document.createElement("code");
+              code.textContent = formatted;
+              pre.appendChild(code);
+              bodyEl.appendChild(pre);
+            } catch (err) {
+              bodyEl.innerHTML = `<p class="no-preview">Error parsing JSON.</p>`;
+            }
+          }
+          else if (fileType === "csv") {
+            // Show raw text (like text)
+            bodyEl.innerHTML = "";
+            const pre = document.createElement("pre");
+            pre.style.whiteSpace = "pre-wrap";
+            const code = document.createElement("code");
+            code.textContent = content;
+            pre.appendChild(code);
+            bodyEl.appendChild(pre);
+          }
+          else if (fileType === "pdf") {
+            // Show PDF embed
+            bodyEl.innerHTML = `
+              <iframe
+                src="data:application/pdf;base64,${content}"
+                type="application/pdf"
+                width="100%"
+                height="600px"
+              ></iframe>
+            `;
+          }
+          else if (fileType === "image") {
+            // Show image
+            const img = document.createElement("img");
+            img.src = `data:image/*;base64,${content}`;
+            img.style.maxWidth = "100%";
+            bodyEl.innerHTML = "";
+            bodyEl.appendChild(img);
+          }
+          else if (fileType === "video") {
+            // Show video
+            const vid = document.createElement("video");
+            vid.controls = true;
+            vid.style.maxWidth = "100%";
+            vid.src = `data:video/mp4;base64,${content}`;
+            bodyEl.innerHTML = "";
+            bodyEl.appendChild(vid);
+          }
+          else {
+            // Unsupported file type, no download option
+            bodyEl.innerHTML = `
+              <p class="no-preview">No preview available for this file type.</p>
+            `;
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          bodyEl.innerHTML = `<p class="no-preview">Error loading file preview.</p>`;
+        });
+    }
+
+    function closeFilePreview() {
+      const overlay = document.getElementById("file_preview_overlay");
+      overlay.classList.remove("active");
+      document.getElementById("file_preview_body").innerHTML = "";
+      document.getElementById("file_preview_title").textContent = "";
+    }
+
+    /* Explorer Trigger */
+    function triggerExplorer() {
+      if (!activeChainId) return;
+      fetch(`/open_in_explorer?chain_id=${activeChainId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.status === 'ok') {
+            console.log('Explorer triggered');
+          } else {
+            alert('Failed to open explorer: ' + (data.message || 'Unknown error'));
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          alert('Failed to open explorer.');
+        });
     }
   </script>
 </body>

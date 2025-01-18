@@ -5,7 +5,9 @@ import signal
 import ast
 import json
 import shutil
-from flask import Flask, render_template, request, jsonify, Response
+import base64
+import mimetypes
+from flask import Flask, render_template, request, jsonify, Response, send_from_directory
 
 app = Flask(__name__)
 
@@ -324,6 +326,113 @@ def get_progress():
     if row:
         return jsonify({'progress_pct': row[0] or 0, 'progress_stage': row[1] or ''})
     return jsonify({'progress_pct': 0, 'progress_stage': ''})
+
+@app.route('/preview_file', methods=['GET'])
+def preview_file():
+    """
+    Returns a JSON structure with:
+    {
+      'status': 'ok'/'error',
+      'fileType': 'text'/'json'/'csv'/'pdf'/'image'/'video'/'unsupported',
+      'content': ...
+    }
+    For text-based files, return the raw text.
+    For JSON, return the raw text (to parse client side).
+    For images, return base64 data.
+    For PDF, return base64 data.
+    For videos (e.g. mp4), return base64 data.
+    For others, no preview => user can download.
+    """
+    chain_id = request.args.get('chain_id', '')
+    filename = request.args.get('filename', '')
+    if not chain_id or not filename:
+        return jsonify({'status': 'error', 'message': 'Missing chain_id or filename'})
+
+    target_dir = os.path.join(RESULTS_DIR, chain_id)
+    file_path = os.path.join(target_dir, filename)
+
+    if not os.path.exists(file_path):
+        return jsonify({'status': 'error', 'message': 'File not found'})
+
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if not mime_type:
+        # fallback
+        mime_type = 'application/octet-stream'
+
+    try:
+        if mime_type.startswith('text/'):
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                text_data = f.read()
+            # Check if it's probably JSON
+            if filename.lower().endswith('.json'):
+                return jsonify({'status': 'ok', 'fileType': 'json', 'content': text_data})
+            elif filename.lower().endswith('.csv'):
+                return jsonify({'status': 'ok', 'fileType': 'csv', 'content': text_data})
+            else:
+                return jsonify({'status': 'ok', 'fileType': 'text', 'content': text_data})
+
+        elif mime_type == 'application/json':
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                text_data = f.read()
+            return jsonify({'status': 'ok', 'fileType': 'json', 'content': text_data})
+
+        elif mime_type in ['application/pdf']:
+            with open(file_path, 'rb') as f:
+                pdf_bytes = f.read()
+            b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            return jsonify({'status': 'ok', 'fileType': 'pdf', 'content': b64_pdf})
+
+        elif mime_type.startswith('image/'):
+            with open(file_path, 'rb') as f:
+                image_bytes = f.read()
+            b64_img = base64.b64encode(image_bytes).decode('utf-8')
+            return jsonify({'status': 'ok', 'fileType': 'image', 'content': b64_img})
+
+        elif mime_type.startswith('video/'):
+            with open(file_path, 'rb') as f:
+                video_bytes = f.read()
+            b64_vid = base64.b64encode(video_bytes).decode('utf-8')
+            return jsonify({'status': 'ok', 'fileType': 'video', 'content': b64_vid})
+
+        else:
+            # Unsupported file type, no download option
+            return jsonify({'status': 'ok', 'fileType': 'unsupported'})
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+# Optional direct serving from results if needed:
+@app.route('/results/<chain_id>/<filename>')
+def download_result(chain_id, filename):
+    return send_from_directory(os.path.join(RESULTS_DIR, chain_id), filename, as_attachment=True)
+
+@app.route('/open_in_explorer', methods=['GET'])
+def open_in_explorer():
+    """
+    Calls funcs/explorer_trigger.py with the absolute path to
+    the results folder for the given chain_id.
+    """
+    chain_id = request.args.get('chain_id', '')
+    if not chain_id:
+        return jsonify({'status': 'error', 'message': 'No chain_id provided'})
+
+    results_dir_path = os.path.abspath(os.path.join(RESULTS_DIR, str(chain_id)))
+    if not os.path.exists(results_dir_path):
+        return jsonify({'status': 'error', 'message': 'Results folder not found'})
+
+    # Attempt to run the script with the path
+    script_path = os.path.join(os.path.dirname(__file__), 'funcs', 'explorer_trigger.py')
+    if not os.path.exists(script_path):
+        return jsonify({'status': 'error', 'message': 'explorer_trigger.py not found'})
+
+    try:
+        subprocess.run(
+            ['python', script_path, results_dir_path],
+            check=True
+        )
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
