@@ -395,7 +395,7 @@ def preview_file():
             return jsonify({'status': 'ok', 'fileType': 'video', 'content': b64_vid})
 
         else:
-            # Unsupported file type, no download option
+            # Unsupported file types will not show any preview
             return jsonify({'status': 'ok', 'fileType': 'unsupported'})
 
     except Exception as e:

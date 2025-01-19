@@ -218,9 +218,6 @@
       background: #555;
       cursor: not-allowed;
     }
-    .top-bar .disabled-button:hover {
-      background: #555;
-    }
     .top-bar .timer {
       font-size: var(--font-size-sm);
       color: var(--text-muted-color);
@@ -652,7 +649,6 @@
       color: #aaa;
       transition: color 0.2s;
     }
-
     .step-detail-header .close-btn:hover {
       color: #fff;
     }
@@ -946,7 +942,7 @@
       if (savedModel) document.getElementById("chatgpt_model").value = savedModel;
 
       initialConversations = getCurrentConversationIds();
-      updateAgentControls(); // Decide which buttons to show/hide
+      updateAgentControls();
     });
 
     function getCurrentConversationIds() {
@@ -986,7 +982,6 @@
           stopBtn.style.display = "none";
           startBtn.style.display = "none";
           disabledBtn.style.display = "inline-block";
-          // highlight the running conversation
           highlightActiveConversation(runningChainId);
         }
       } else {
@@ -1016,7 +1011,6 @@
 
       resetProgressIndicators();
 
-      // Make attachments editable again
       setFileAttachmentsEditable(true);
       renderAttachedFiles();
 
@@ -1048,7 +1042,6 @@
       document.getElementById("file_input").click();
     }
 
-    // Upload multiple files
     function uploadSelectedFile(event) {
       const files = event.target.files;
       if (!files || files.length === 0) return;
@@ -1141,10 +1134,8 @@
         addButton.style.display = "none";
       }
 
-      // Re-render
       attachedFilesContainer.innerHTML = "";
       if (isEditable) {
-        // Show each file as editable
         attachedFiles.forEach((fileObj, index) => {
           const filename = Object.keys(fileObj)[0];
           const description = fileObj[filename].description;
@@ -1181,7 +1172,6 @@
         const expandableDiv = document.createElement("div");
         expandableDiv.className = "expandable-files";
 
-        // Create header with toggle button
         const headerDiv = document.createElement("div");
         headerDiv.className = "expandable-header";
         headerDiv.style.cursor = "pointer";
@@ -1203,13 +1193,11 @@
         headerDiv.appendChild(toggleIcon);
         headerDiv.appendChild(headerText);
 
-        // Create content container
         const contentDiv = document.createElement("div");
         contentDiv.style.display = "none";
         contentDiv.style.transition = "max-height 0.2s";
         contentDiv.style.overflow = "hidden";
 
-        // Show files or no files message
         if (attachedFiles.length === 0) {
           const noFilesDiv = document.createElement("div");
           noFilesDiv.style.fontSize = "0.9em";
@@ -1243,12 +1231,10 @@
           });
         }
 
-        // Add toggle functionality
         headerDiv.onclick = () => {
           const isExpanded = contentDiv.style.display === "block";
           contentDiv.style.display = isExpanded ? "none" : "block";
           toggleIcon.style.transform = isExpanded ? "rotate(0deg)" : "rotate(90deg)";
-          // Apply scrolling if more than 3 files
           if (!isExpanded && attachedFiles.length > 3) {
             contentDiv.style.maxHeight = "120px";
             contentDiv.style.overflowY = "auto";
@@ -1260,7 +1246,6 @@
         attachedFilesContainer.appendChild(expandableDiv);
       }
 
-      // Apply the same scroll logic
       if (attachedFiles.length > 3) {
         attachedFilesContainer.style.maxHeight = "120px";
         attachedFilesContainer.style.overflowY = "auto";
@@ -1274,9 +1259,8 @@
       if (eventSource) eventSource.close();
       if (agentRunning) return;
 
-      runningChainId = activeChainId; // The conversation about to run
+      runningChainId = activeChainId;
       document.getElementById("user_query").disabled = true;
-      // Once we start agent, attachments become read-only
       setFileAttachmentsEditable(false);
 
       startTime = Date.now();
@@ -1356,17 +1340,7 @@
       updateAgentControls();
       showMainProgressBar();
 
-      // Add a conversation-item for "None" if not exists and highlight it
-      if (chainArg === "None") {
-        const existing = document.querySelector(`.conversation-item[data-chain-id='None']`);
-        if (!existing) {
-          addConversationToSidebar('None', `New Agent | None`);
-          initialConversations.push('None');
-        }
-        highlightActiveConversation('None');
-      }
-
-      // Poll for new conversation (i.e. a new chain) if chainArg was "None"
+      // If chainArg == "None", we rely on checkForNewConversation below to create it
       if (chainArg === "None") {
         if (conversationInterval) clearInterval(conversationInterval);
         conversationInterval = setInterval(checkForNewConversation, 1000);
@@ -1387,10 +1361,8 @@
           let foundNew = false;
 
           for (let c of convs) {
-            if (
-              !initialConversations.includes(String(c.id)) &&
-              !currentIds.includes(String(c.id))
-            ) {
+            // if there's a new chain (not in initialConversations or currentIds)
+            if (!initialConversations.includes(String(c.id)) && !currentIds.includes(String(c.id))) {
               const nowStr = new Date().toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -1399,10 +1371,13 @@
               initialConversations.push(String(c.id));
               activeChainId = c.id;
               runningChainId = c.id;
-              // Start plan polling, fetch attached files, rename folder
+              // Poll
               startPlanPolling();
               pollChainTitle();
               fetchAttachedFiles(c.id);
+
+              // Immediately highlight it
+              highlightActiveConversation(runningChainId);
 
               if (!folderRenamed && c.id !== "None") {
                 renameNoneFolderTo(c.id);
@@ -1432,7 +1407,6 @@
       })
         .then((res) => res.json())
         .then((data) => {
-          // no special UI needed
           console.log("Rename folder result:", data);
         })
         .catch((err) => console.error("Rename folder error:", err));
@@ -1513,8 +1487,7 @@
         .then((res) => res.json())
         .then((data) => {
           if (data.status === "stopped") {
-            document.getElementById("output_area").textContent +=
-              "\nAgent stopped by user.\n";
+            document.getElementById("output_area").textContent += "\nAgent stopped by user.\n";
             if (eventSource) {
               eventSource.close();
               eventSource = null;
@@ -1576,12 +1549,11 @@
       })
         .then((response) => response.json())
         .then((data) => {
-          document.getElementById("output_area").textContent =
-            data.history || "No history found.";
+          document.getElementById("output_area").textContent = data.history || "No history found.";
           document.getElementById("user_query").value = data.user_query || "";
-          document.getElementById("user_query").disabled = true; // loaded old conversation
+          document.getElementById("user_query").disabled = true;
 
-          agentEverStarted = true; // Means there's some existing data
+          agentEverStarted = true;
           updateAgentControls();
 
           const attachedFilesData = JSON.parse(data.attached_files);
@@ -1624,9 +1596,7 @@
         .then((res) => res.json())
         .then((data) => {
           if (data.status === "deleted") {
-            const item = document.querySelector(
-              `.conversation-item[data-chain-id='${chainIdToDelete}']`
-            );
+            const item = document.querySelector(`.conversation-item[data-chain-id='${chainIdToDelete}']`);
             if (item) item.remove();
             initialConversations = initialConversations.filter(
               (cid) => cid !== String(chainIdToDelete)
@@ -1640,7 +1610,6 @@
               resetProgressIndicators();
             }
             if (runningChainId === chainIdToDelete) {
-              // We forcibly stop if that chain was running
               stopAgentIfRunning();
             }
           }
@@ -1669,7 +1638,7 @@
     function startPlanPolling() {
       if (planInterval) clearInterval(planInterval);
       if (activeChainId) {
-        planInterval = setInterval(fetchPlanSteps, 1000);
+        planInterval = setInterval(fetchPlanSteps, 4000);
         fetchPlanSteps();
       }
       refreshResults();
@@ -1686,7 +1655,7 @@
             return;
           }
 
-          const plan = data.plan;  // This might have { overview, num_steps, steps }
+          const plan = data.plan;
           if (!plan.num_steps) {
             showAwaitingPlan();
             lastPlanData = plan;
@@ -1700,16 +1669,14 @@
     }
 
     function showAwaitingPlan() {
-      document.getElementById(
-        "plan_steps_container"
-      ).innerHTML = `<div class="awaiting-plan">Awaiting plan...</div>`;
+      document.getElementById("plan_steps_container").innerHTML =
+        `<div class="awaiting-plan">Awaiting plan...</div>`;
     }
 
     function renderPlanSteps(dataObj) {
       const container = document.getElementById("plan_steps_container");
       container.innerHTML = "";
 
-      // 1) If there's an "overview" key, show it first
       if (dataObj.overview) {
         const overviewDiv = document.createElement("div");
         overviewDiv.className = "plan-step";
@@ -1732,7 +1699,6 @@
         container.appendChild(overviewDiv);
       }
 
-      // 2) Then list the numbered steps
       const { num_steps, steps } = dataObj;
       for (let i = 1; i <= (num_steps || 0); i++) {
         const stepDiv = document.createElement("div");
@@ -1759,13 +1725,18 @@
           headerDiv.appendChild(titleSpan);
           stepDiv.appendChild(headerDiv);
 
-          if (status === "elaborating" || status === "executing" || status === "debugging") {
+          if (
+            status === "elaborating" ||
+            status === "executing" ||
+            status === "debugging"
+          ) {
             const boldLine = document.createElement("div");
             boldLine.style.fontWeight = "bold";
             if (status === "debugging") {
               boldLine.textContent = "Debugging...";
             } else {
-              boldLine.textContent = status === "elaborating" ? "Elaborating..." : "Executing...";
+              boldLine.textContent =
+                status === "elaborating" ? "Elaborating..." : "Executing...";
             }
             stepDiv.appendChild(boldLine);
 
@@ -1856,10 +1827,8 @@
       return txt.substring(0, maxLen - 3) + "...";
     }
 
-    /* STEP DETAIL POPUP */
     function openStepDetail(stepIndex) {
-      // Special check for overview
-      if (stepIndex === 'overview') {
+      if (stepIndex === "overview") {
         if (lastPlanData && lastPlanData.overview) {
           showStepModal("Overview", lastPlanData.overview);
         } else {
@@ -1890,26 +1859,28 @@
       modalBox.style.width = "95%";
 
       if (!window.Prism) {
-        const prismCSS = document.createElement('link');
-        prismCSS.rel = 'stylesheet';
-        prismCSS.href = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css';
+        const prismCSS = document.createElement("link");
+        prismCSS.rel = "stylesheet";
+        prismCSS.href =
+          "https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css";
         document.head.appendChild(prismCSS);
 
-        const prismScript = document.createElement('script');
-        prismScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js';
+        const prismScript = document.createElement("script");
+        prismScript.src =
+          "https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js";
         document.head.appendChild(prismScript);
 
-        const languages = ['javascript', 'python', 'bash', 'html', 'css', 'json'];
-        languages.forEach(lang => {
-          const script = document.createElement('script');
+        const languages = ["javascript", "python", "bash", "html", "css", "json"];
+        languages.forEach((lang) => {
+          const script = document.createElement("script");
           script.src = `https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-${lang}.min.js`;
           document.head.appendChild(script);
         });
       }
 
       if (!window.marked) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
         script.onload = () => {
           renderMarkdown(body);
         };
@@ -1922,45 +1893,45 @@
     function renderMarkdown(body) {
       marked.setOptions({
         breaks: true,
-        highlight: function(code, lang) {
+        highlight: function (code, lang) {
           if (Prism && Prism.languages[lang]) {
             return Prism.highlight(code, Prism.languages[lang], lang);
           }
           return code;
-        }
+        },
       });
 
       const bodyEl = document.getElementById("step_detail_body");
-      bodyEl.style.padding = '20px';
+      bodyEl.style.padding = "20px";
       bodyEl.innerHTML = marked.parse(body);
 
-      const codeBlocks = bodyEl.querySelectorAll('pre code');
-      codeBlocks.forEach(block => {
+      const codeBlocks = bodyEl.querySelectorAll("pre code");
+      codeBlocks.forEach((block) => {
         const pre = block.parentElement;
-        pre.style.border = '1px solid #444';
-        pre.style.borderRadius = '4px';
-        pre.style.padding = '35px 15px 15px 15px';
-        pre.style.position = 'relative';
-        pre.style.background = '#1e1e1e';
+        pre.style.border = "1px solid #444";
+        pre.style.borderRadius = "4px";
+        pre.style.padding = "35px 15px 15px 15px";
+        pre.style.position = "relative";
+        pre.style.background = "#1e1e1e";
 
-        const copyButton = document.createElement('button');
-        copyButton.textContent = 'Copy';
-        copyButton.style.position = 'absolute';
-        copyButton.style.left = '5px';
-        copyButton.style.top = '5px';
-        copyButton.style.padding = '3px 8px';
-        copyButton.style.background = '#444';
-        copyButton.style.border = 'none';
-        copyButton.style.borderRadius = '3px';
-        copyButton.style.color = '#fff';
-        copyButton.style.cursor = 'pointer';
-        copyButton.style.fontSize = '12px';
+        const copyButton = document.createElement("button");
+        copyButton.textContent = "Copy";
+        copyButton.style.position = "absolute";
+        copyButton.style.left = "5px";
+        copyButton.style.top = "5px";
+        copyButton.style.padding = "3px 8px";
+        copyButton.style.background = "#444";
+        copyButton.style.border = "none";
+        copyButton.style.borderRadius = "3px";
+        copyButton.style.color = "#fff";
+        copyButton.style.cursor = "pointer";
+        copyButton.style.fontSize = "12px";
 
         copyButton.onclick = () => {
           navigator.clipboard.writeText(block.textContent);
-          copyButton.textContent = 'Copied!';
+          copyButton.textContent = "Copied!";
           setTimeout(() => {
-            copyButton.textContent = 'Copy';
+            copyButton.textContent = "Copy";
           }, 2000);
         };
 
@@ -1979,7 +1950,6 @@
       document.getElementById("step_detail_body").textContent = "";
     }
 
-    /* RESULTS POLLING */
     function refreshResults() {
       if (!activeChainId) return;
       fetch(`/get_results/${activeChainId}`)
@@ -1994,7 +1964,7 @@
             li.textContent = "No files found.";
             li.style.cursor = "default";
             list.appendChild(li);
-            explorerBtn.style.display = "none"; // Hide if no files
+            explorerBtn.style.display = "none";
           } else {
             files.forEach((file) => {
               const li = document.createElement("li");
@@ -2002,13 +1972,12 @@
               li.onclick = () => openFilePreview(file);
               list.appendChild(li);
             });
-            explorerBtn.style.display = "inline-block"; // Show if files exist
+            explorerBtn.style.display = "inline-block";
           }
         });
     }
     setInterval(refreshResults, 1000);
 
-    /* PROGRESS POLLING */
     function fetchProgress() {
       if (!activeChainId) return;
       fetch(`/get_progress?chain_id=${activeChainId}`)
@@ -2027,7 +1996,6 @@
         .catch((err) => console.error(err));
     }
 
-    /* FILE PREVIEW MODAL */
     function openFilePreview(filename) {
       if (!activeChainId) return;
       const overlay = document.getElementById("file_preview_overlay");
@@ -2039,18 +2007,21 @@
 
       overlay.classList.add("active");
 
-      fetch(`/preview_file?chain_id=${activeChainId}&filename=${encodeURIComponent(filename)}`)
+      fetch(
+        `/preview_file?chain_id=${activeChainId}&filename=${encodeURIComponent(filename)}`
+      )
         .then((res) => res.json())
         .then((data) => {
           if (data.status !== "ok") {
-            bodyEl.innerHTML = `<p class="no-preview">${data.message || "Error loading file."}</p>`;
+            bodyEl.innerHTML = `<p class="no-preview">${
+              data.message || "Error loading file."
+            }</p>`;
             return;
           }
           const fileType = data.fileType;
           const content = data.content;
 
           if (fileType === "text") {
-            // Show as code block
             const pre = document.createElement("pre");
             pre.style.whiteSpace = "pre-wrap";
             const code = document.createElement("code");
@@ -2058,9 +2029,7 @@
             pre.appendChild(code);
             bodyEl.innerHTML = "";
             bodyEl.appendChild(pre);
-          }
-          else if (fileType === "json") {
-            // pretty-print
+          } else if (fileType === "json") {
             bodyEl.innerHTML = "";
             try {
               const parsed = JSON.parse(content);
@@ -2074,9 +2043,7 @@
             } catch (err) {
               bodyEl.innerHTML = `<p class="no-preview">Error parsing JSON.</p>`;
             }
-          }
-          else if (fileType === "csv") {
-            // Show raw text (like text)
+          } else if (fileType === "csv") {
             bodyEl.innerHTML = "";
             const pre = document.createElement("pre");
             pre.style.whiteSpace = "pre-wrap";
@@ -2084,9 +2051,7 @@
             code.textContent = content;
             pre.appendChild(code);
             bodyEl.appendChild(pre);
-          }
-          else if (fileType === "pdf") {
-            // Show PDF embed
+          } else if (fileType === "pdf") {
             bodyEl.innerHTML = `
               <iframe
                 src="data:application/pdf;base64,${content}"
@@ -2095,26 +2060,21 @@
                 height="600px"
               ></iframe>
             `;
-          }
-          else if (fileType === "image") {
-            // Show image
+          } else if (fileType === "image") {
             const img = document.createElement("img");
             img.src = `data:image/*;base64,${content}`;
             img.style.maxWidth = "100%";
             bodyEl.innerHTML = "";
             bodyEl.appendChild(img);
-          }
-          else if (fileType === "video") {
-            // Show video
+          } else if (fileType === "video") {
             const vid = document.createElement("video");
             vid.controls = true;
             vid.style.maxWidth = "100%";
             vid.src = `data:video/mp4;base64,${content}`;
             bodyEl.innerHTML = "";
             bodyEl.appendChild(vid);
-          }
-          else {
-            // Unsupported file type, no download option
+          } else {
+            // No preview for this file type
             bodyEl.innerHTML = `
               <p class="no-preview">No preview available for this file type.</p>
             `;
@@ -2133,21 +2093,20 @@
       document.getElementById("file_preview_title").textContent = "";
     }
 
-    /* Explorer Trigger */
     function triggerExplorer() {
       if (!activeChainId) return;
       fetch(`/open_in_explorer?chain_id=${activeChainId}`)
         .then((res) => res.json())
         .then((data) => {
-          if (data.status === 'ok') {
-            console.log('Explorer triggered');
+          if (data.status === "ok") {
+            console.log("Explorer triggered");
           } else {
-            alert('Failed to open explorer: ' + (data.message || 'Unknown error'));
+            alert("Failed to open explorer: " + (data.message || "Unknown error"));
           }
         })
         .catch((err) => {
           console.error(err);
-          alert('Failed to open explorer.');
+          alert("Failed to open explorer.");
         });
     }
   </script>
