@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-  <title>NextCircuit</title>
+  <title>New Agent</title>
 
   <!-- Use a clean, modern, timeless font from Google Fonts (Inter) -->
   <link rel="preconnect" href="https://fonts.gstatic.com" />
@@ -1672,154 +1672,166 @@
       document.getElementById("plan_steps_container").innerHTML =
         `<div class="awaiting-plan">Awaiting plan...</div>`;
     }
-
     function renderPlanSteps(dataObj) {
-      const container = document.getElementById("plan_steps_container");
-      container.innerHTML = "";
+    const container = document.getElementById("plan_steps_container");
+    container.innerHTML = "";
 
-      if (dataObj.overview) {
-        const overviewDiv = document.createElement("div");
-        overviewDiv.className = "plan-step";
-        overviewDiv.onclick = () => openStepDetail('overview');
-
-        const headerDiv = document.createElement("div");
-        headerDiv.className = "plan-step-header";
-
-        const iconSpan = document.createElement("span");
-        iconSpan.className = "step-icon";
-        iconSpan.textContent = "🌐";
-
-        const titleSpan = document.createElement("span");
-        titleSpan.textContent = "Overview";
-
-        headerDiv.appendChild(iconSpan);
-        headerDiv.appendChild(titleSpan);
-        overviewDiv.appendChild(headerDiv);
-
-        container.appendChild(overviewDiv);
-      }
-
-      const { num_steps, steps } = dataObj;
-      for (let i = 1; i <= (num_steps || 0); i++) {
-        const stepDiv = document.createElement("div");
-        stepDiv.className = "plan-step";
-        stepDiv.onclick = () => openStepDetail(i);
-
-        const headerDiv = document.createElement("div");
-        headerDiv.className = "plan-step-header";
-
-        const iconSpan = document.createElement("span");
-        iconSpan.className = "step-icon";
-
-        const step = steps[i];
-        if (step) {
-          const status = step.status || "pending";
-          iconSpan.textContent = getStepIcon(status);
-
-          const text = step.step_title || step.elaboration || "... (awaiting details)";
-          const shortText = shortSummary(text, 50);
-
-          const titleSpan = document.createElement("span");
-          titleSpan.textContent = `Step ${i}) ${shortText}`;
-          headerDiv.appendChild(iconSpan);
-          headerDiv.appendChild(titleSpan);
-          stepDiv.appendChild(headerDiv);
-
-          if (
-            status === "elaborating" ||
-            status === "executing" ||
-            status === "debugging"
-          ) {
-            const boldLine = document.createElement("div");
-            boldLine.style.fontWeight = "bold";
-            if (status === "debugging") {
-              boldLine.textContent = "Debugging...";
-            } else {
-              boldLine.textContent =
-                status === "elaborating" ? "Elaborating..." : "Executing...";
-            }
-            stepDiv.appendChild(boldLine);
-
-            const bar = document.createElement("div");
-            bar.style.height = "6px";
-            bar.style.background = "#444";
-            bar.style.position = "relative";
-            bar.style.borderRadius = "4px";
-            bar.style.overflow = "hidden";
-            bar.style.marginTop = "5px";
-
-            const fill = document.createElement("div");
-            fill.style.position = "absolute";
-            fill.style.top = "0";
-            fill.style.left = "-100%";
-            fill.style.height = "100%";
-            fill.style.width = "100%";
-            fill.style.borderRadius = "4px";
-            fill.style.animation = "slowTravel 4s linear infinite";
-
-            if (status === "debugging") {
-              fill.style.background = "#ff8400";
-            } else if (status === "elaborating") {
-              fill.style.background = "var(--warning-color)";
-            } else {
-              fill.style.background = "var(--accent-color)";
-            }
-
-            bar.appendChild(fill);
-            stepDiv.appendChild(bar);
-          }
-        } else {
-          iconSpan.textContent = "🔘";
-          const titleSpan = document.createElement("span");
-          titleSpan.textContent = `Step ${i}) ... (awaiting title)`;
-          headerDiv.appendChild(iconSpan);
-          headerDiv.appendChild(titleSpan);
-          stepDiv.appendChild(headerDiv);
-        }
-        container.appendChild(stepDiv);
-      }
-    }
-
-    function renderPlanStepsPlaceholder() {
-      const container = document.getElementById("plan_steps_container");
-      container.innerHTML = "";
-
-      const stepDiv = document.createElement("div");
-      stepDiv.className = "plan-step";
+    if (dataObj.overview) {
+      const overviewDiv = document.createElement("div");
+      overviewDiv.className = "plan-step";
+      overviewDiv.onclick = () => openStepDetail('overview');
 
       const headerDiv = document.createElement("div");
       headerDiv.className = "plan-step-header";
 
       const iconSpan = document.createElement("span");
       iconSpan.className = "step-icon";
-      iconSpan.textContent = "🔘";
+      iconSpan.textContent = "🌐";
 
       const titleSpan = document.createElement("span");
-      titleSpan.textContent = "Step 1) ... (awaiting plan)";
+      titleSpan.textContent = "Overview";
 
       headerDiv.appendChild(iconSpan);
       headerDiv.appendChild(titleSpan);
-      stepDiv.appendChild(headerDiv);
-      container.appendChild(stepDiv);
+      overviewDiv.appendChild(headerDiv);
+
+      container.appendChild(overviewDiv);
     }
 
-    function getStepIcon(status) {
-      switch (status) {
-        case "pending":
-          return "🔘";
-        case "debugging":
-          return "🛠️";
-        case "executing":
-        case "elaborating":
-          return "⏳";
-        case "elaborated":
-          return "⚪️";
-        case "completed":
-          return "✅";
-        default:
-          return "🔘";
+    const { num_steps, steps } = dataObj;
+    for (let i = 1; i <= (num_steps || 0); i++) {
+      const stepDiv = document.createElement("div");
+      stepDiv.className = "plan-step";
+      stepDiv.onclick = () => openStepDetail(i);
+
+      const headerDiv = document.createElement("div");
+      headerDiv.className = "plan-step-header";
+
+      const iconSpan = document.createElement("span");
+      iconSpan.className = "step-icon";
+
+      const step = steps[i];
+      if (step) {
+        const status = step.status || "pending";
+
+        // **Start of Modification: Determine Icon Based on Waiting Status**
+        let isWaiting = false;
+        let displayStatus = status;
+
+        if (agentRunning && activeChainId === runningChainId) {
+          // Agent is running for the active conversation: Show original status
+          if (status === "debugging") {
+            displayStatus = "Debugging...";
+          } else if (status === "elaborating") {
+            displayStatus = "Elaborating...";
+          } else if (status === "executing") {
+            displayStatus = "Executing...";
+          }
+        } else {
+          // Agent is NOT running for the active conversation: Show waiting status
+          if (status === "debugging") {
+            displayStatus = "...Waiting to debug";
+            isWaiting = true;
+          } else if (status === "elaborating") {
+            displayStatus = "...Waiting to elaborate";
+            isWaiting = true;
+          } else if (status === "executing") {
+            displayStatus = "...Waiting to execute";
+            isWaiting = true;
+          }
+        }
+        // **End of Modification**
+
+        // **Set Icon Based on Waiting Status**
+        if (isWaiting) {
+          iconSpan.textContent = "⏸️"; // Pause Icon for Waiting Status
+        } else {
+          iconSpan.textContent = getStepIcon(status); // Original Icon
+        }
+        // **End of Icon Setting**
+
+        const text = step.step_title || step.elaboration || "... (awaiting details)";
+        const shortText = shortSummary(text, 50);
+
+        const titleSpan = document.createElement("span");
+        titleSpan.textContent = `Step ${i}) ${shortText}`;
+        headerDiv.appendChild(iconSpan);
+        headerDiv.appendChild(titleSpan);
+        stepDiv.appendChild(headerDiv);
+
+        if (
+          status === "elaborating" ||
+          status === "executing" ||
+          status === "debugging"
+        ) {
+          const boldLine = document.createElement("div");
+          boldLine.style.fontWeight = "bold";
+          boldLine.style.marginTop = "5px"; // Added for better spacing
+
+          // **Set Displayed Status Text**
+          boldLine.textContent = displayStatus;
+          // **End of Status Text Setting**
+
+          stepDiv.appendChild(boldLine);
+
+          const bar = document.createElement("div");
+          bar.style.height = "6px";
+          bar.style.background = "#444";
+          bar.style.position = "relative";
+          bar.style.borderRadius = "4px";
+          bar.style.overflow = "hidden";
+          bar.style.marginTop = "5px";
+
+          const fill = document.createElement("div");
+          fill.style.position = "absolute";
+          fill.style.top = "0";
+          fill.style.left = "-100%";
+          fill.style.height = "100%";
+          fill.style.width = "100%";
+          fill.style.borderRadius = "4px";
+          fill.style.animation = "slowTravel 4s linear infinite";
+
+          if (status === "debugging") {
+            fill.style.background = "#ff8400";
+          } else if (status === "elaborating") {
+            fill.style.background = "var(--warning-color)";
+          } else {
+            fill.style.background = "var(--accent-color)";
+          }
+
+          bar.appendChild(fill);
+          stepDiv.appendChild(bar);
+        }
+      } else {
+        iconSpan.textContent = "🔘";
+        const titleSpan = document.createElement("span");
+        titleSpan.textContent = `Step ${i}) ... (awaiting title)`;
+        headerDiv.appendChild(iconSpan);
+        headerDiv.appendChild(titleSpan);
+        stepDiv.appendChild(headerDiv);
       }
+      container.appendChild(stepDiv);
     }
+  }
+
+  function getStepIcon(status) {
+    switch (status) {
+      case "pending":
+        return "🔘";
+      case "debugging":
+        return "🛠️";
+      case "executing":
+      case "elaborating":
+        return "⏳";
+      case "elaborated":
+        return "⚪️";
+      case "completed":
+        return "✅";
+      default:
+        return "🔘";
+    }
+  }
+
 
     function shortSummary(txt, maxLen) {
       if (!txt) return "";
@@ -2045,12 +2057,35 @@
             }
           } else if (fileType === "csv") {
             bodyEl.innerHTML = "";
-            const pre = document.createElement("pre");
-            pre.style.whiteSpace = "pre-wrap";
-            const code = document.createElement("code");
-            code.textContent = content;
-            pre.appendChild(code);
-            bodyEl.appendChild(pre);
+            try {
+              const table = document.createElement("table");
+              table.style.width = "100%";
+              table.style.borderCollapse = "collapse";
+
+              const rows = content.split('\n').filter(row => row.trim() !== '');
+              rows.forEach((row, rowIndex) => {
+                const tr = document.createElement("tr");
+                const cells = row.split(',');
+
+                cells.forEach((cell) => {
+                  const cellElement = rowIndex === 0 ? document.createElement("th") : document.createElement("td");
+                  cellElement.textContent = cell.trim();
+                  cellElement.style.border = "1px solid #444";
+                  cellElement.style.padding = "8px";
+                  cellElement.style.textAlign = "left";
+                  cellElement.style.backgroundColor = rowIndex === 0 ? "#555" : "#1e1e1e";
+                  cellElement.style.color = "#fff";
+                  tr.appendChild(cellElement);
+                });
+
+                table.appendChild(tr);
+              });
+
+              bodyEl.appendChild(table);
+            } catch (err) {
+              console.error("CSV Parsing Error:", err);
+              bodyEl.innerHTML = `<p class="no-preview">Error parsing CSV file.</p>`;
+            }
           } else if (fileType === "pdf") {
             bodyEl.innerHTML = `
               <iframe

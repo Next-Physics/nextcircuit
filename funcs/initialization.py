@@ -268,8 +268,8 @@ def investigate_circumstances(d):
     d["internet_connection"] = internet_connection
     update_chains_db(chain_id,"internet_connection",internet_connection)
 
-    d["next_stage"] = "propose_step_by_step_plan"
-    update_chains_db(d["id"], "next_stage", "propose_step_by_step_plan")
+    d["next_stage"] = "refine_step_by_step_template"
+    update_chains_db(d["id"], "next_stage", "refine_step_by_step_template")
 
     print("Updated DB with physical circumstances...")
     print("Success!\n")

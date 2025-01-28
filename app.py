@@ -17,6 +17,9 @@ RESULTS_DIR = 'results'  # Root results directory
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
+# Ensure 'text/csv' MIME type is recognized
+mimetypes.add_type('text/csv', '.csv')
+
 running_process = None
 
 def get_latest_chain_id():
@@ -212,6 +215,8 @@ def run_agent():
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        encoding="utf-8",  # Explicitly set the encoding
+        errors="replace",  # Replace invalid characters instead of throwing an error
         preexec_fn=preexec,
         creationflags=creationflags
     )
@@ -435,4 +440,4 @@ def open_in_explorer():
         return jsonify({'status': 'error', 'message': str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000)

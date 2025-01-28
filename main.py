@@ -27,6 +27,9 @@ from funcs.planning import extract_step_titles
 ### Import Execution functions ###
 from funcs.execution import execute_plan
 
+### Import Prompt Refining functions ###
+from funcs.prompt_refining import refine_step_by_step_template
+
 ### Importing Misc. functions ###
 from funcs.misc import create_print_with_logging
 
@@ -111,6 +114,10 @@ def main():
     ############################################################
     ######################## PLANNING ##########################
     ############################################################
+
+    # Refine step by step template according to the context of the users request
+    if d["next_stage"] == "refine_step_by_step_template":
+        refine_step_by_step_template(d)
 
     # Propose a step-by-step plan for agent to follow
     if d["next_stage"] == "propose_step_by_step_plan":

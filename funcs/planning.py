@@ -16,14 +16,18 @@ def create_elaboration_prompt(d):
 
 The elaborated query must:
 
-- Retain all original user instructions and intent.
 - Fill in implied details necessary to fully accomplish the goal.
+- Retain all original user instructions and intent.
 - Assume urgency and importance.
-- Specify realistic resources and actions to achieve the goal from start to finish.
+- Specify realistic resources and actions to achieve the goal from.
 - Ensure logical consistency and avoid contradictory or irrelevant tangents.
-- Include only steps directly related to accomplishing the user’s request.
 - Avoid unnecessary complexity or unrelated tasks.
-- Make it fully actionable so the autonomous agent can execute all steps (research, ordering, simulation, report writing, communication, etc.) immediately.
+- Assume that it is aware the plan will be executed by an autonomous agent (primarily using bash and python) with broad capabilities.
+- Assume the user is aware the machine can interface with both local pc, the internet and the physical world (e.g., webcam, microphone, bluetooth etc.).
+- Make the request phrased such that it is fully actionable by an autonomous agent that can execute all steps  immediately.
+- Assume that the agent can perfor anything from required research, ordering, simulation, report writing, communication, reasoning
+- Ensure that NO unnecessary tasks are included in the elaboration.
+- Assume the user don't wants to use APIs or paid services unless absolutely necessary.
 
 Please respond only with the fully elaborated query. Do not include these instructions in your response.
 
@@ -62,99 +66,13 @@ def propose_step_by_step_plan(d):
     print(info)
     update_chains_db(d["id"], "progress_stage", info)
 
-    d["exe_prompt"] = f"""
-1. ROLE & CONTEXT
+    step_by_step_combined_prompt = d['plan']['refined_step_by_step_template'].replace("[INSERT USER REQUEST]", d['prompt'])
 
-You are an advanced autonomous agent capable of handling the entire lifecycle of an elaborate plan to meet the users goal.
-Your capabilities include (but are not limited to):
-
-    Local storage (read and write access).
-    External APIs, tools, and services (querying, retrieving data, and performing transactions).
-    Using credit card (found in d['credit_card']) access for online apis, purchases, rentals, or subscriptions.
-    LLM query (e.g., you can send request to an LLM to generate text & analyze data) by using function query_llm(d) where d['exe_prompt'] has your query. Remeber to import like: funcs.query_llm import query_llm and assign question / content / query to d['exe_prompt'] = "Some content".
-    Potential real-world interactions, such as scheduling appointments, controlling hardware, purchasing items, communications.
-    Access to pherephials like cameras, microphones, bluetooth, etc.
-    Internal chain-of-thought.
-    Ability to execute terminal commands
-
-Your primary objective is to provide a comprehensive, step-by-step plan for achieving the user’s requested outcome. You should assume that you can execute each step autonomously (with no further human input).
-
-The user’s request is as follows:
-{d['prompt']}
-
-
-2. TASK ANALYSIS
-
-Given the users request, you should:
-    Break down the goal into clear sub-goals or deliverables (but don't over do it).
-    Identify resources needed—digital, physical, human, or otherwise.
-    Generate a step-by-step plan that logically addresses and completes each sub-goal.
-    Keep in mind you capabilities as mentioned previously (e.g., LLM queries, API access, local storage, etc.).
-    Keep in mind Dependencies / Prerequisites
-    Use unique numbering for steps (e.g., **Step 1: some task**, **Step 2: another task**, etc.).
-
-In doing so, remember to tailor the depth and complexity of your plan based on the complexity of the request:
-    If straightforward, produce a concise plan with fewer steps.
-    If complex, produce a thorough plan covering every necessary sub-step and consideration.
-    Always aim for the path of least resistance while ensuring completeness.
-
-3. STEP-BY-STEP PLAN REQUIREMENTS
-
-When crafting your step-by-step plan, include:
-
-    Over all actions: A bullet point view of all the actions to be carried.
-    Proposal of which tools, APIs, search engines, or local queries you will use
-    Indication of the order and logical flow of tasks, and note approximate time if relevant.
-    Validation & Checks: Specify how to verify correctness or completion (e.g., verifying a file was created correctly, confirming a purchase, or obtaining final user approval).
-    Logic representation 
-
-Important: The plan should be detailed enough that an autonomous LLM agent with the listed capabilities can fully execute it “from start to finish” without additional human intervention, unless absolutely necessary.
-In practice: Next step of the program we will have another LLM elaborate further on each step of the plan to ensure the step if fully executable.
-
-4. FURTHER INSTRUCTIONS FOR PLANNING & OUTPUT
-
-    Do not output as markdown.
-    Number your plan’s steps clearly (e.g., **Step 1: some task**, **Step 2: another task**, etc.).
-    File/Data References: If you create a file (e.g., output.json) or variable (e.g., final_results), consistently refer to the same exact name in subsequent steps.
-    Important, Code blocks will be executed sepertely, if a variable or file is needed in the sequential code block, make sure to save it in the correct location.
-    Results and any 'working documents & file' must be saved in folder {d['results_dir']}
-    Connect each step to the next, ensuring every subtask contributes to the overall goal.
-    Use modern, up-to-date methods or tools unless outdated ones are absolutely required.
-    Anticipate potential challenges or risks, and include troubleshooting tips.
-    Verify feasibility of each step with given resources (e.g., do you have the correct permissions, hardware capabilities, etc.?).
-    For any steps requiring human interaction, ensure instructions for communication are clear, empathetic, and effective.
-    Maintain clarity and simplicity, especially if the user is not highly technical.
-    Avoid unnecessary or redundant steps.
-    You should merge steps where possible to minimize complexity.
-    Minimize cost (avoid paid APIs if free alternatives exist).
-    Double-check that data or files generated in one step are used or referenced accurately in later steps.
-    Lastly remember, the user will not execute any step of the plan. The plan should be fully autonomous and executable using subsequence steps with bash and python code blocks.
-    I will show you the resulting execution of each code block so you can see if the plan is working as expected. We will step in the same step until it has been executed successfully.
-    NEVER EVER end your output with leftover hidden steps like so **... (36 more steps)**.
-    I repeat, NEVER EVER end the output with leftover hidden steps like so **... (36 more steps)**.
-
-5. OUTPUT
-
-    At the end of each step of the plan, provide extremely specific file names and formats for the input and output of that step. This will ensure that the plan is executed correctly and efficiently.:
-    
-    For example:
-    Input: 'raw_data.csv'
-    Output: 'processed_data.pdf'
-
-    Be extremely specific with the naming of files and variables to ensure consistency. If no input is required, write None
-    Never EVER assume a variable simply can transferred as output, if needed in next step, save it to a file and read it in the next step.
-
-6. PRIORITIZATION
-
-    If a task requires text generation or text analysis, ALWAYS use the function query_llm() with your query in d['exe_prompt'] rather than using traditional/other NLP methods. 
-    Find the path of least resistance to achieve the goal (if the end results is 100% the same you may modify exclude, modify or add particular points mentioned by the user).
-    Avoid using try and except inside code blocks.
-
-    """
+    d["exe_prompt"] = step_by_step_combined_prompt 
 
     # Generate plan overview
     plan_overview = query_llm(d)
-    d["plan"] = {"overview": plan_overview}
+    d["plan"]["overview"] = plan_overview
 
     # Extract number of steps
     num_steps = extract_number_of_steps(d)
@@ -227,6 +145,58 @@ def extract_step_titles(d):
         d["next_stage"] = "elaborate_on_steps"
         update_chains_db(d["id"], "next_stage", "elaborate_on_steps")
 
+
+
+### A function that based on the elaborated steps creates python logic that checks for success
+def create_step_success_check_logic(i,d):
+
+    print("Writing logic to check whether the step was successfully executed")
+
+    d["exe_prompt"] = f"""You are an expert at creating python logic that checks if an LLM agent has successfully completed / executed a step in a plan. 
+    
+    Your goal is to create a single python code block that checks if a step successfully run or produce the expected output.
+
+    Here are some examples of things to check for:
+    - If a step is expected to have create a particular file, you should check if the file exists.
+    - If a step is expected to have downloaded a file, you should check if the file is present.
+    - If a step is expected to have generated a particular output, you should check if the output is correct.
+    - In general, for any output of a step, you should also ensure that files are not empty
+
+    Given the following step details:
+
+    {d["plan"]["steps"][i]["elaboration"]}
+
+    Please write the appropriate python code block we can run to check whether the expected output was created.
+    
+    Example of a expected python code block:
+    ```python
+    import os
+
+    msg = ""
+    if os.file.exists("path/to/file.csv") and os.getsize_of("path/to/file.csv") > 0: # some logic that see if file has a size larger than 0:
+        return True,msg
+
+    elif os.file.exists:("path/to/file.csv") and os.getsize_of("path/to/file.csv") == 0:
+        msg = "File is empty"
+        return False,msg
+    
+    else:
+        msg = "File not found or created"
+        return False,msg
+    ```
+
+    **Keep in mind**
+    If the step is not expected to create any output simply return True and an empty msg = ""
+
+    Now please return ONLY the expected step-success python logic: 
+
+    """
+
+    return query_llm(d)
+
+
+
+
 def elaborate_on_steps(d):
 
     info = "Elaborating & extending each step of the plan to gain more details..."
@@ -245,15 +215,16 @@ def elaborate_on_steps(d):
         
         # Generate elaboration prompt
         d["exe_prompt"] = f"""
-        As a planning and action expert, elaborate extensively on **Step {i}** of this plan:
+        As a planning and action expert, you goal is to elaborate extensively on **Step {i}** of this plan:
 
         **Plan Overview**:
         '{d['plan']['overview']}'
 
+
         **Instructions**:
 
         a. **Elaboration Requirements**
-        - A concise description of the all actions required, ensuring it can be carried out autonomously by the LLM agent and directly contribute towards achieving the goal.
+        - A description of the all actions required, ensuring it can be carried out autonomously by an LLM agent that directly contributes towards achieving the goal.
         - Provide all full necessary code or commands, enclosed in markdown code blocks.
         - Provide real executable code - don't provide hypothetical examples
         - Language identifiers after the opening triple backticks in code blocks (e.g., ```python, ```bash).
@@ -273,7 +244,7 @@ def elaborate_on_steps(d):
         - Refrain from using old traditional NLP methods when analyzing retrieved / downloaded content, instead use the query_llm() function.
         - Refrain from using paid APIs, unless they are absolutely necessary.
         - If a step requires interactions with humans, ensure the communication is clear, pursuaive, triggers empathy and is effective.
-        - Ensure you don't accidentally mix up python and bash commands in the same code block unless it is designed to specifically work together.
+        - Do not accidentially mix up python and bash commands in the same code block unless it is designed to specifically work together.
         - Know you limitations as an LLM agent and don't try to do things that are impossible for an LLM agent to do, instead find a genious workaround.
 
         c. **Consolidate Dependent Code in a Single Code Block**  
@@ -286,7 +257,7 @@ def elaborate_on_steps(d):
 
         e. **Detailed Procedure**  
         - Explain step-by-step instructions linking to earlier and subsequent steps.
-        - List any tools, libraries, or data sources required, and how to install or import them.
+        - Include all tools, libraries, or data sources required, and the logic to install or access them.
         - Clearly specify how to save results in the folder {d['results_dir']} for use in subsequent steps.
 
         f. **Outputs and transfering of information **  
@@ -299,7 +270,9 @@ def elaborate_on_steps(d):
         - Any code for this step must be placed inside a single fenced code block if the lines are interdependent.  
         - Avoid splitting related Python code, as we run each fenced code block in isolation.  
         - Keep the number of fenced code blocks minimal for each step.
-        - Code must include logical checks to ensure the desire output is achieved.
+        - Code must contain logical checks to ensure the desire output is achieved (empty files are not acceptable).
+        - Do not assume ANY user inputs such as key presses or mouse clicks to run the step.
+        - REMEMBER generated files,code,scripts and documents MUST be saved to {d['results_dir']} for use in subsequent steps.
 
 
         - Example usage of the function query_llm along with a local file:
@@ -309,6 +282,7 @@ def elaborate_on_steps(d):
         with open("results_dir/some_file>", "r") as f:
             content = f.read()
 
+        # d is already defined in the environment
         d["exe_prompt"] = "Detailed instructions:" + content
         answer = query_llm(d)
 
@@ -319,15 +293,29 @@ def elaborate_on_steps(d):
         **Deliverables**:
         - A thorough, foolproof explanation of how to execute Step {i}.
         - A single self-contained (or minimal separate) code block that can be run to produce the expected results.
-        - Clear instructions for verifying success or diagnosing failures.
+        - Clear logic for verifying success or diagnosing failures.
+        - Code to save generated code/scripts/documents to {d['results_dir']} for use in subsequent steps.
 
-        **Now, please provide your elaboration for Step {i}**:
+        """
+
+        if i > 1:
+            d["exe_prompt"] += f"""\n
+            **Keep in mind**:
+            - To ensure coherences between steps here is the elaboration of the previous step {i-1}:
+            {d["plan"]["steps"][i-1]["elaboration"]}
+            """
+        
+        d["exe_prompt"] += f"""\n
+        **Now, please provide your elaboration for Step {i} of the Plan Overview**:
         """
 
         step_elaboration = query_llm(d)
 
         # Update status to "elaborated"
         d["plan"]["steps"][i]["elaboration"] = step_elaboration
+
+        # Write check logic step = create_step_success_check_logic(i,d):
+        d["plan"]["steps"][i]["success_check"] = create_step_success_check_logic(i,d)
 
         # Set status back to pending
         d["plan"]["steps"][i]["status"] = "elaborated"
